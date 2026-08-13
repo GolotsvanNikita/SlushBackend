@@ -1,0 +1,13 @@
+<Solution>
+  <Project Path="Slush.API/Slush.API.csproj">
+    <BuildDependency Project="Slush.Application/Slush.Application.csproj" />
+    <BuildDependency Project="Slush.Infrastructure/Slush.Infrastructure.csproj" />
+  </Project>
+  <Project Path="Slush.Application/Slush.Application.csproj">
+    <BuildDependency Project="Slush.Domain/Slush.Domain.csproj" />
+  </Project>
+  <Project Path="Slush.Domain/Slush.Domain.csproj" />
+  <Project Path="Slush.Infrastructure/Slush.Infrastructure.csproj">
+    <BuildDependency Project="Slush.Application/Slush.Application.csproj" />
+  </Project>
+</Solution>

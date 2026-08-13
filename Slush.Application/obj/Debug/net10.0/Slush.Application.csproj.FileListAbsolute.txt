@@ -1,0 +1,15 @@
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\bin\Debug\net10.0\Slush.Application.deps.json
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\bin\Debug\net10.0\Slush.Application.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\bin\Debug\net10.0\Slush.Application.pdb
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.AssemblyInfoInputs.cache
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.AssemblyInfo.cs
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.csproj.CoreCompileInputs.cache
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\refint\Slush.Application.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.pdb
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\ref\Slush.Application.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\bin\Debug\net10.0\Slush.Domain.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\bin\Debug\net10.0\Slush.Domain.pdb
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Application.csproj.AssemblyReference.cache
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Application\obj\Debug\net10.0\Slush.Ap.30A4BC6B.Up2Date
