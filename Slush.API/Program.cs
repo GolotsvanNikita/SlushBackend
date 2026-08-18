@@ -60,7 +60,6 @@ builder.Services.AddSwaggerGen(c =>
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Description = "Вставь сюда ТОЛЬКО сам токен (слово Bearer писать НЕ НУЖНО!)",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
         Scheme = "Bearer",
