@@ -49,5 +49,12 @@ namespace Slush.API.Controllers
             await _authService.ResetPasswordAsync(request);
             return Ok(new { message = "Password has been reset successfully." });
         }
+
+        [HttpPost("resend-verification-code")]
+        public async Task<IActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeDto request)
+        {
+            await _authService.ResendVerificationCodeAsync(request);
+            return Ok(new { message = "If the email is registered, a new code has been sent." });
+        }
     }
 }

@@ -142,3 +142,4 @@ C:\Users\hhj1\source\repos\SlushBackend\Slush.API\obj\Debug\net10.0\refint\Slush
 C:\Users\hhj1\source\repos\SlushBackend\Slush.API\obj\Debug\net10.0\Slush.API.pdb
 C:\Users\hhj1\source\repos\SlushBackend\Slush.API\obj\Debug\net10.0\Slush.API.genruntimeconfig.cache
 C:\Users\hhj1\source\repos\SlushBackend\Slush.API\obj\Debug\net10.0\ref\Slush.API.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.API\obj\Debug\net10.0\Slush.API.sourcelink.json

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Slush.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6ebba4e9f58440ceb0b082c03442de27cc0ad1e9")]
 [assembly: System.Reflection.AssemblyProductAttribute("Slush.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Slush.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

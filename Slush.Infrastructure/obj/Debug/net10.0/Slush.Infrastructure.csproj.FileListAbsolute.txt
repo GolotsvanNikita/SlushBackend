@@ -17,3 +17,4 @@ C:\Users\hhj1\source\repos\SlushBackend\Slush.Infrastructure\obj\Debug\net10.0\r
 C:\Users\hhj1\source\repos\SlushBackend\Slush.Infrastructure\obj\Debug\net10.0\Slush.Infrastructure.pdb
 C:\Users\hhj1\source\repos\SlushBackend\Slush.Infrastructure\obj\Debug\net10.0\Slush.Infrastructure.genruntimeconfig.cache
 C:\Users\hhj1\source\repos\SlushBackend\Slush.Infrastructure\obj\Debug\net10.0\ref\Slush.Infrastructure.dll
+C:\Users\hhj1\source\repos\SlushBackend\Slush.Infrastructure\obj\Debug\net10.0\Slush.Infrastructure.sourcelink.json
