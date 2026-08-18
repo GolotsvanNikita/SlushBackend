@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Slush.Domain.Enums;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -12,5 +13,8 @@ namespace Slush.Domain.Entities
         public string PasswordHash { get; set; } = string.Empty;
         public bool IsEmailVerified { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public UserRole Role { get; set; } = UserRole.User;
+        public bool IsBanned { get; set; } = false;
     }
 }

@@ -85,6 +85,7 @@ public class AuthService : IAuthService
             throw new Exception("Invalid username or password.");
 
         if (!user.IsEmailVerified) throw new Exception("Please verify your email address.");
+        if (user.IsBanned) throw new Exception("This account has been banned by an administrator.");
 
         string token = GenerateJwtToken(user);
 
@@ -180,7 +181,8 @@ public class AuthService : IAuthService
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.UniqueName, user.Username)
+            new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
+            new Claim(ClaimTypes.Role, user.Role.ToString())
         };
 
         var token = new JwtSecurityToken(

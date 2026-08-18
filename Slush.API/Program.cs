@@ -70,7 +70,7 @@ builder.Services.AddSwaggerGen(c =>
 
     var securityRequirement = new OpenApiSecurityRequirement();
     var schemeReference = new OpenApiSecuritySchemeReference("Bearer");
-    securityRequirement.Add(schemeReference, new List<string>());
+    securityRequirement.Add(schemeReference, []);
     c.AddSecurityRequirement(_ => securityRequirement);
 });
 
@@ -92,5 +92,34 @@ app.UseCors(policy => policy
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    db.Database.Migrate();
+
+    if (!db.Users.Any(u => u.Role == Slush.Domain.Enums.UserRole.Admin))
+    {
+        var admin = new Slush.Domain.Entities.User
+        {
+            Id = Guid.NewGuid(),
+            Username = "SlushAdmin",
+            Email = "admin@slush.com",
+
+            PasswordHash = "$2a$11$3obaCy1iMcoEe125.yuL1ugKA6bEmZhDLaIDJ2N13cTz5zm3mFgrq",
+
+            Role = Slush.Domain.Enums.UserRole.Admin,
+            IsBanned = false,
+            IsEmailVerified = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Users.Add(admin);
+        db.SaveChanges();
+
+        Console.WriteLine("[SEED] Default admin user created successfully.");
+    }
+}
 
 app.Run();
