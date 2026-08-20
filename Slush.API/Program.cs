@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Slush.API.Hubs;
 using Slush.Application.Interfaces;
 using Slush.Infrastructure.Data;
 using Slush.Infrastructure.Services;
@@ -51,6 +52,9 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<PresenceStateService>();
+builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddSwaggerGen(c =>
@@ -76,18 +80,16 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 
 app.UseCors(policy => policy
-    .AllowAnyOrigin()
+    .SetIsOriginAllowed(origin => true)
     .AllowAnyMethod()
-    .AllowAnyHeader());
+    .AllowAnyHeader()
+    .AllowCredentials());
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -121,5 +123,8 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine("[SEED] Default admin user created successfully.");
     }
 }
+
+app.MapHub<GlobeHub>("/hubs/globe");
+app.MapHub<OnlineHub>("/hubs/online");
 
 app.Run();
