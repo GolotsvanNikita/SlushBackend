@@ -1,11 +1,34 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using Slush.Infrastructure.Services;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace Slush.API.Hubs;
 
+[Authorize]
 public class OnlineHub : Hub
 {
-    public async Task BroadcastStatusChange(string steamId, string status, string game)
+    private readonly PresenceStateService _state;
+
+    public OnlineHub(PresenceStateService state)
     {
-        await Clients.Others.SendAsync("OnStatusChanged", steamId, status, game);
+        _state = state;
+    }
+
+    public async Task SetGameStatus(string status, string game)
+    {
+        var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var nickname = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Player";
+
+        if (userId != null && _state.ActiveConnections.TryGetValue(Context.ConnectionId, out var session))
+        {
+            session.Status = status;
+            session.CurrentGame = game;
+            session.UserId = userId;
+            session.Nickname = nickname;
+
+            await Clients.Others.SendAsync("OnStatusChanged", userId, status, game);
+        }
     }
 }

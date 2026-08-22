@@ -15,6 +15,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
+builder.Services.AddHostedService<ActivitySnapshotWorker>();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -55,7 +57,14 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<PresenceStateService>();
 builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<ICatalogService, Slush.Infrastructure.Services.CheapSharkCatalogService>(client =>
+{
+    client.DefaultRequestHeaders.Add("User-Agent", "SlushPlatform/1.0 (contact@slush.com)");
+});
 
 builder.Services.AddSwaggerGen(c =>
 {

@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Slush.Infrastructure.Services;
+using System.Security.Claims;
 
 namespace Slush.API.Hubs;
 
@@ -14,9 +15,17 @@ public class GlobeHub(IGeoLocationService geo, PresenceStateService state) : Hub
         var ip = httpContext?.Request.Headers["X-Forwarded-For"].FirstOrDefault()
                  ?? httpContext?.Connection.RemoteIpAddress?.ToString();
 
-        var geo = _geo.GetLocation(ip);
+        var location = _geo.GetLocation(ip);
 
-        _state.ActiveConnections.TryAdd(Context.ConnectionId, geo);
+        var session = new UserSession
+        {
+            Location = location,
+            UserId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+            Nickname = Context.User?.FindFirst(ClaimTypes.Name)?.Value ?? "Guest",
+            Status = "Online"
+        };
+
+        _state.ActiveConnections.TryAdd(Context.ConnectionId, session);
 
         await Clients.All.SendAsync("UsersUpdated", _state.ActiveConnections.Values);
         await base.OnConnectedAsync();

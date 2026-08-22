@@ -3,12 +3,14 @@ using Slush.Domain.Entities;
 
 namespace Slush.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options){}
-
     public DbSet<User> Users { get; set; }
     public DbSet<VerificationCode> VerificationCodes { get; set; }
+    public DbSet<ActivitySnapshot> ActivitySnapshots { get; set; }
+    public DbSet<AlertRule> AlertRules { get; set; }
+    public DbSet<AlertHistory> AlertHistories { get; set; }
+    public DbSet<NotificationConfig> NotificationConfigs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
