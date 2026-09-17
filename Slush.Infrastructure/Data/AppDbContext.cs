@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AlertRule> AlertRules { get; set; }
     public DbSet<AlertHistory> AlertHistories { get; set; }
     public DbSet<NotificationConfig> NotificationConfigs { get; set; }
+    public DbSet<UserLoginHistory> UserLoginHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

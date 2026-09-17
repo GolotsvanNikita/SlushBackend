@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Slush.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Slush.Infrastructure.Data;
 namespace Slush.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260917123455_AddLastLoginAtToUser")]
+    partial class AddLastLoginAtToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -164,25 +167,6 @@ namespace Slush.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Slush.Domain.Entities.UserLoginHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("LoginTimestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserLoginHistories");
-                });
-
             modelBuilder.Entity("Slush.Domain.Entities.VerificationCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -207,17 +191,6 @@ namespace Slush.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("VerificationCodes");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserLoginHistory", b =>
-                {
-                    b.HasOne("Slush.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.VerificationCode", b =>

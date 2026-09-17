@@ -18,43 +18,149 @@ namespace Slush.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto request)
         {
-            await _authService.RegisterAsync(request);
-            return Ok(new { message = "Registration successful. Please check your email for the verification code." });
+            try
+            {
+                await _authService.RegisterAsync(request);
+
+                return Ok(new
+                {
+                    message = "Registration successful. Please check your email for the verification code."
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPost("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromBody] VerifyCodeDto request)
         {
-            await _authService.VerifyEmailAsync(request);
-            return Ok(new { message = "Email verified successfully." });
+            try
+            {
+                await _authService.VerifyEmailAsync(request);
+
+                return Ok(new
+                {
+                    message = "Email verified successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto request)
         {
-            var response = await _authService.LoginAsync(request);
-            return Ok(response);
+            try
+            {
+                var response = await _authService.LoginAsync(request);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "Invalid username or password.")
+                {
+                    return Unauthorized(new
+                    {
+                        message = ex.Message
+                    });
+                }
+
+                if (ex.Message == "Please verify your email address.")
+                {
+                    return Unauthorized(new
+                    {
+                        message = ex.Message
+                    });
+                }
+
+                if (ex.Message == "This account has been banned by an administrator.")
+                {
+                    return StatusCode(403, new
+                    {
+                        message = ex.Message
+                    });
+                }
+
+                return StatusCode(500, new
+                {
+                    message = "An unexpected error occurred."
+                });
+            }
         }
 
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
         {
-            await _authService.ForgotPasswordAsync(request);
-            return Ok(new { message = "Password reset code sent to your email." });
+            try
+            {
+                await _authService.ForgotPasswordAsync(request);
+
+                return Ok(new
+                {
+                    message = "Password reset code sent to your email."
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
         {
-            await _authService.ResetPasswordAsync(request);
-            return Ok(new { message = "Password has been reset successfully." });
+            try
+            {
+                await _authService.ResetPasswordAsync(request);
+
+                return Ok(new
+                {
+                    message = "Password has been reset successfully."
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
 
         [HttpPost("resend-verification-code")]
-        public async Task<IActionResult> ResendVerificationCode([FromBody] ResendVerificationCodeDto request)
+        public async Task<IActionResult> ResendVerificationCode(
+            [FromBody] ResendVerificationCodeDto request)
         {
-            await _authService.ResendVerificationCodeAsync(request);
-            return Ok(new { message = "If the email is registered, a new code has been sent." });
+            try
+            {
+                await _authService.ResendVerificationCodeAsync(request);
+
+                return Ok(new
+                {
+                    message = "If the email is registered, a new code has been sent."
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
         }
     }
 }

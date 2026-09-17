@@ -1,24 +1,22 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Slush.Application.DTOs.Auth
 {
-    public record ResetPasswordDto(
+    public record ResetPasswordDto
+    {
         [Required(ErrorMessage = "Email is required.")]
         [EmailAddress(ErrorMessage = "Invalid email format.")]
-        string Email,
+        public string Email { get; init; } = string.Empty;
 
         [Required(ErrorMessage = "Verification code is required.")]
-        string Code,
+        public string Code { get; init; } = string.Empty;
 
         [Required(ErrorMessage = "New password is required.")]
         [MinLength(6, ErrorMessage = "Password must be at least 6 characters long.")]
-        string NewPassword,
+        public string NewPassword { get; init; } = string.Empty;
 
         [Required(ErrorMessage = "Password confirmation is required.")]
-        [property: Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
-        string ConfirmPassword
-    );
+        [Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; init; } = string.Empty;
+    }
 }

@@ -87,6 +87,16 @@ public class AuthService : IAuthService
         if (!user.IsEmailVerified) throw new Exception("Please verify your email address.");
         if (user.IsBanned) throw new Exception("This account has been banned by an administrator.");
 
+        user.LastLoginAt = DateTime.UtcNow;
+
+        _context.UserLoginHistories.Add(new UserLoginHistory
+        {
+            UserId = user.Id,
+            LoginTimestamp = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+
         string token = GenerateJwtToken(user);
 
         return new AuthResponseDto(token, "");

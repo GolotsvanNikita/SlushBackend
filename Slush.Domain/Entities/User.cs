@@ -14,6 +14,8 @@ namespace Slush.Domain.Entities
         public bool IsEmailVerified { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        public DateTime? LastLoginAt { get; set; }
+
         public UserRole Role { get; set; } = UserRole.User;
         public bool IsBanned { get; set; } = false;
     }

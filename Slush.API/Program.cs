@@ -58,6 +58,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<PresenceStateService>();
 builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
@@ -95,7 +96,11 @@ app.UseSwaggerUI();
 app.UseHttpsRedirection();
 
 app.UseCors(policy => policy
-    .SetIsOriginAllowed(origin => true)
+    .WithOrigins(
+        "https://slush-front-aqna.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:5173"
+    )
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials());
