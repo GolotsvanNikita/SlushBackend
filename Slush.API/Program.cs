@@ -7,6 +7,8 @@ using Slush.Application.Interfaces;
 using Slush.Infrastructure.Data;
 using Slush.Infrastructure.Services;
 using System.Text;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +18,16 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
-builder.Services.AddHostedService<ActivitySnapshotWorker>();
+builder.Services.AddScoped<ISnapshotService, SnapshotService>();
+
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"))));
+
+builder.Services.AddHangfireServer();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -59,6 +70,7 @@ builder.Services.AddSingleton<PresenceStateService>();
 builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
@@ -66,6 +78,7 @@ builder.Services.AddHttpClient<ICatalogService, Slush.Infrastructure.Services.Ch
 {
     client.DefaultRequestHeaders.Add("User-Agent", "SlushPlatform/1.0 (contact@slush.com)");
 });
+builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>("PostgreSQL");
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -115,30 +128,56 @@ using (var scope = app.Services.CreateScope())
 
     db.Database.Migrate();
 
-    if (!db.Users.Any(u => u.Role == Slush.Domain.Enums.UserRole.Admin))
+    var admin = db.Users.FirstOrDefault(u => u.Email == "admin@slush.com");
+
+    if (admin == null)
     {
-        var admin = new Slush.Domain.Entities.User
+        admin = new Slush.Domain.Entities.User
         {
             Id = Guid.NewGuid(),
             Username = "SlushAdmin",
             Email = "admin@slush.com",
-
             PasswordHash = "$2a$11$3obaCy1iMcoEe125.yuL1ugKA6bEmZhDLaIDJ2N13cTz5zm3mFgrq",
-
-            Role = Slush.Domain.Enums.UserRole.Admin,
+            Role = Slush.Domain.Enums.UserRole.SuperAdmin,
             IsBanned = false,
             IsEmailVerified = true,
             CreatedAt = DateTime.UtcNow
         };
-
         db.Users.Add(admin);
         db.SaveChanges();
-
-        Console.WriteLine("[SEED] Default admin user created successfully.");
+        Console.WriteLine("[SEED] Default SuperAdmin user created successfully.");
+    }
+    else if (admin.Role != Slush.Domain.Enums.UserRole.SuperAdmin)
+    {
+        admin.Role = Slush.Domain.Enums.UserRole.SuperAdmin;
+        db.SaveChanges();
+        Console.WriteLine("[SEED] Upgraded existing default admin to SuperAdmin.");
     }
 }
 
 app.MapHub<GlobeHub>("/hubs/globe");
 app.MapHub<OnlineHub>("/hubs/online");
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = [new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter()]
+});
+
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
+    recurringJobManager.AddOrUpdate<ISnapshotService>(
+        "take-activity-snapshot",
+        service => service.TakeActivitySnapshotAsync(),
+        Cron.Hourly);
+
+    recurringJobManager.AddOrUpdate<ISnapshotService>(
+        "sync-game-catalog",
+        service => service.SyncGameCatalogAsync(),
+        Cron.Daily(3));
+}
+
+app.MapHealthChecks("/health");
 
 app.Run();

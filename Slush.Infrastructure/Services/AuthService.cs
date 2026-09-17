@@ -95,11 +95,20 @@ public class AuthService : IAuthService
             LoginTimestamp = DateTime.UtcNow
         });
 
+        string accessToken = GenerateJwtToken(user);
+        string refreshToken = GenerateRefreshTokenString();
+
+
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            Token = refreshToken,
+            UserId = user.Id,
+            Expires = DateTime.UtcNow.AddDays(7)
+        });
+
         await _context.SaveChangesAsync();
 
-        string token = GenerateJwtToken(user);
-
-        return new AuthResponseDto(token, "");
+        return new AuthResponseDto(accessToken, refreshToken);
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordDto request)
@@ -203,5 +212,42 @@ public class AuthService : IAuthService
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
+    {
+        var existingToken = await _context.RefreshTokens
+            .Include(rt => rt.User)
+            .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+        if (existingToken == null || !existingToken.IsActive)
+            throw new Exception("Invalid or expired refresh token. Please login again.");
+
+        var user = existingToken.User;
+        if (user.IsBanned) throw new Exception("This account is banned.");
+
+        existingToken.Revoked = DateTime.UtcNow;
+
+        string newAccessToken = GenerateJwtToken(user);
+        string newRefreshToken = GenerateRefreshTokenString();
+
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            Token = newRefreshToken,
+            UserId = user.Id,
+            Expires = DateTime.UtcNow.AddDays(7)
+        });
+
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto(newAccessToken, newRefreshToken);
+    }
+
+    private string GenerateRefreshTokenString()
+    {
+        var randomBytes = new byte[32];
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(randomBytes);
+        return Convert.ToBase64String(randomBytes);
     }
 }

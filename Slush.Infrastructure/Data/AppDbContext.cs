@@ -12,6 +12,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AlertHistory> AlertHistories { get; set; }
     public DbSet<NotificationConfig> NotificationConfigs { get; set; }
     public DbSet<UserLoginHistory> UserLoginHistories { get; set; }
+    public DbSet<GameStatsSnapshot> GameStatsSnapshots { get; set; }
+    public DbSet<AdminActionLog> AdminActionLogs { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

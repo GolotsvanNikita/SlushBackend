@@ -2,13 +2,14 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Slush.Application.DTOs.Admin;
+using Slush.Application.DTOs.Auth;
 using Slush.Infrastructure.Data;
 
 namespace Slush.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "SuperAdmin, Admin, Moderator")]
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -56,10 +57,34 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = "You cannot ban yourself." });
         }
 
+        if ((user.Role == Domain.Enums.UserRole.SuperAdmin || user.Role == Domain.Enums.UserRole.Admin)
+            && !User.IsInRole("SuperAdmin"))
+        {
+            return StatusCode(403, new { message = "You do not have permission to ban an Administrator." });
+        }
+
         user.IsBanned = !user.IsBanned;
         await _context.SaveChangesAsync();
 
         string status = user.IsBanned ? "banned" : "unbanned";
         return Ok(new { message = $"User {user.Username} has been {status}." });
+    }
+
+    [HttpPut("users/{userId}/role")]
+    [Authorize(Roles = "SuperAdmin")]
+    public async Task<IActionResult> UpdateRole(Guid userId, [FromBody] UpdateUserRoleRequestDto request)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return NotFound(new { message = "User not found." });
+
+        if (user.Email == User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value)
+        {
+            return BadRequest(new { message = "You cannot change your own role." });
+        }
+
+        user.Role = request.NewRole;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = $"User role updated to {request.NewRole}" });
     }
 }

@@ -9,7 +9,7 @@ namespace Slush.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin, Admin")]
     public class NotificationsController : ControllerBase
     {
         private readonly INotificationService _notificationService;

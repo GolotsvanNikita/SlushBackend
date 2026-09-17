@@ -13,7 +13,7 @@ namespace Slush.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "SuperAdmin, Admin, Analyst")]
 public class MonitoringController : ControllerBase
 {
     private readonly PresenceStateService _state;

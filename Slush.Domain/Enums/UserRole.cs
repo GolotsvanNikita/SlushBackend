@@ -7,6 +7,9 @@ namespace Slush.Domain.Enums
     public enum UserRole
     {
         User = 0,
-        Admin = 1
+        Analyst = 1,
+        Moderator = 2,
+        Admin = 3,
+        SuperAdmin = 4
     }
 }

@@ -105,9 +105,9 @@ namespace Slush.Infrastructure.Services
 
                     double rate = Math.Round((double)activeUsersCount / totalUsers * 100, 2);
                     retentionRates.Add(rate);
-                }
 
                 cohorts.Add(new CohortRowDto(monthStr, totalUsers, retentionRates));
+                }
             }
 
             return cohorts;

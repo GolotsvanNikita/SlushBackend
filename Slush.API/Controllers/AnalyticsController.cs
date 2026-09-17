@@ -10,14 +10,16 @@ namespace Slush.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "SuperAdmin, Admin, Analyst")]
     public class AnalyticsController : ControllerBase
     {
         private readonly IAnalyticsService _analyticsService;
+        private readonly IReportService _reportService;
 
-        public AnalyticsController(IAnalyticsService analyticsService)
+        public AnalyticsController(IAnalyticsService analyticsService, IReportService reportService)
         {
             _analyticsService = analyticsService;
+            _reportService = reportService;
         }
 
         [HttpGet("retention")]
@@ -46,6 +48,22 @@ namespace Slush.API.Controllers
             [FromQuery] DateTime toB)
         {
             return Ok(await _analyticsService.GetComparisonAsync(fromA, toA, fromB, toB));
+        }
+
+        [HttpPost("export")]
+        public async Task<IActionResult> ExportReport([FromBody] ExportReportRequestDto request)
+        {
+            var fileBytes = await _reportService.GenerateReportAsync(request);
+
+            string contentType = request.Format == ReportFormat.Pdf
+                ? "application/pdf"
+                : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+            string fileExtension = request.Format.ToString().ToLower();
+
+            string fileName = $"{request.ReportType}_{DateTime.UtcNow:yyyyMMdd}.{fileExtension}";
+
+            return File(fileBytes, contentType, fileName);
         }
     }
 }

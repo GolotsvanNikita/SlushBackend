@@ -13,5 +13,6 @@ namespace Slush.Application.Interfaces
         Task ForgotPasswordAsync(ForgotPasswordDto request);
         Task ResetPasswordAsync(ResetPasswordDto request);
         Task ResendVerificationCodeAsync(ResendVerificationCodeDto request);
+        Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request);
     }
 }
