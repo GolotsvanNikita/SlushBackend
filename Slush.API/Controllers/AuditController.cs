@@ -1,11 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Slush.Application.DTOs.Audit;
 using Slush.Application.DTOs.Common;
-using Slush.Infrastructure.Data;
-using System.Linq;
-using System.Threading.Tasks;
+using Slush.Application.Interfaces;
+using Slush.Domain.Entities;
 
 namespace Slush.API.Controllers
 {
@@ -14,11 +14,13 @@ namespace Slush.API.Controllers
     [Authorize(Roles = "SuperAdmin, Admin")]
     public class AuditController : ControllerBase
     {
-        private readonly AppDbContext _db;
+        private readonly IUnitOfWork _uow;
+        private readonly IMapper _mapper;
 
-        public AuditController(AppDbContext db)
+        public AuditController(IUnitOfWork uow, IMapper mapper)
         {
-            _db = db;
+            _uow = uow;
+            _mapper = mapper;
         }
 
         [HttpGet("logs")]
@@ -26,7 +28,7 @@ namespace Slush.API.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
-            var query = _db.AdminActionLogs.AsQueryable();
+            var query = _uow.Repository<AdminActionLog>().AsQueryable();
 
             int totalCount = await query.CountAsync();
 
@@ -34,17 +36,11 @@ namespace Slush.API.Controllers
                 .OrderByDescending(l => l.Timestamp)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(l => new AdminActionLogDto(
-                    l.Id,
-                    l.AdminUsername,
-                    l.Action,
-                    l.EntityName,
-                    l.EntityId,
-                    l.Details,
-                    l.Timestamp))
                 .ToListAsync();
 
-            return Ok(new PagedResultDto<AdminActionLogDto>(items, totalCount, page, pageSize));
+            var itemsDto = _mapper.Map<IEnumerable<AdminActionLogDto>>(items);
+
+            return Ok(new PagedResultDto<AdminActionLogDto>(itemsDto, totalCount, page, pageSize));
         }
     }
 }

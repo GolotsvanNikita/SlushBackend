@@ -101,6 +101,13 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityRequirement(_ => securityRequirement);
 });
 
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<Slush.Application.Mappings.MappingProfile>();
+});
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Slush.Infrastructure.Repositories.Repository<>));
+builder.Services.AddScoped<IUnitOfWork, Slush.Infrastructure.Repositories.UnitOfWork>();
+
 var app = builder.Build();
 
 app.UseSwagger();

@@ -1,10 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
-using Slush.Infrastructure.Data;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Slush.Infrastructure.Services;
 
@@ -26,7 +23,7 @@ public class ActivitySnapshotWorker : BackgroundService
             await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
 
             using var scope = _serviceProvider.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             var snapshot = new ActivitySnapshot
             {
@@ -34,8 +31,8 @@ public class ActivitySnapshotWorker : BackgroundService
                 ActiveCount = _presenceState.ActiveConnections.Count
             };
 
-            db.ActivitySnapshots.Add(snapshot);
-            await db.SaveChangesAsync(stoppingToken);
+            await uow.Repository<ActivitySnapshot>().AddAsync(snapshot);
+            await uow.SaveChangesAsync();
         }
     }
 }

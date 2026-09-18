@@ -1,13 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Slush.Application.DTOs.Monitoring;
-using Slush.Infrastructure.Data;
+using Slush.Application.Interfaces;
+using Slush.Domain.Entities;
 using Slush.Infrastructure.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Slush.API.Controllers;
 
@@ -17,21 +15,21 @@ namespace Slush.API.Controllers;
 public class MonitoringController : ControllerBase
 {
     private readonly PresenceStateService _state;
-    private readonly AppDbContext _db;
+    private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
 
-    public MonitoringController(PresenceStateService state, AppDbContext db)
+    public MonitoringController(PresenceStateService state, IUnitOfWork uow, IMapper mapper)
     {
         _state = state;
-        _db = db;
+        _uow = uow;
+        _mapper = mapper;
     }
 
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {
-        var totalMembers = await _db.Users.CountAsync();
-
-        var activeAlertsCount = await _db.AlertHistories.CountAsync(a => !a.IsRead);
-
+        var totalMembers = await _uow.Repository<User>().AsQueryable().CountAsync();
+        var activeAlertsCount = await _uow.Repository<AlertHistory>().AsQueryable().CountAsync(a => !a.IsRead);
         var activeSessions = _state.ActiveConnections.Count;
 
         var summary = new DashboardSummaryDto(
@@ -73,19 +71,19 @@ public class MonitoringController : ControllerBase
             _ => DateTime.UtcNow.AddDays(-1)
         };
 
-        var history = await _db.ActivitySnapshots
+        var history = await _uow.Repository<ActivitySnapshot>().AsQueryable()
             .Where(s => s.Timestamp >= cutoff)
             .OrderBy(s => s.Timestamp)
-            .Select(s => new ActivityPointDto(s.Timestamp, s.ActiveCount))
             .ToListAsync();
 
-        return Ok(history);
+        var historyDto = _mapper.Map<IEnumerable<ActivityPointDto>>(history);
+        return Ok(historyDto);
     }
 
     [HttpGet("heatmap")]
     public async Task<ActionResult<IEnumerable<HeatmapPointDto>>> GetHeatmap()
     {
-        var snapshots = await _db.ActivitySnapshots
+        var snapshots = await _uow.Repository<ActivitySnapshot>().AsQueryable()
             .Where(s => s.Timestamp >= DateTime.UtcNow.AddDays(-7))
             .ToListAsync();
 

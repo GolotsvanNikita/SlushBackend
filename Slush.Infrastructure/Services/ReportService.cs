@@ -5,28 +5,27 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Slush.Application.DTOs.Analytics;
 using Slush.Application.Interfaces;
-using Slush.Infrastructure.Data;
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using Slush.Domain.Entities;
 
 namespace Slush.Infrastructure.Services
 {
     public class ReportService : IReportService
     {
-        private readonly AppDbContext _db;
+        private readonly IUnitOfWork _uow;
 
-        public ReportService(AppDbContext db)
+        public ReportService(IUnitOfWork uow)
         {
-            _db = db;
+            _uow = uow;
             QuestPDF.Settings.License = LicenseType.Community;
         }
 
         public async Task<byte[]> GenerateReportAsync(ExportReportRequestDto request)
         {
-            var newUsersCount = await _db.Users.CountAsync(u => u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate);
-            var activeLoginsCount = await _db.UserLoginHistories.CountAsync(h => h.LoginTimestamp >= request.StartDate && h.LoginTimestamp <= request.EndDate);
+            var usersRepo = _uow.Repository<User>().AsQueryable();
+            var historyRepo = _uow.Repository<UserLoginHistory>().AsQueryable();
+
+            var newUsersCount = await usersRepo.CountAsync(u => u.CreatedAt >= request.StartDate && u.CreatedAt <= request.EndDate);
+            var activeLoginsCount = await historyRepo.CountAsync(h => h.LoginTimestamp >= request.StartDate && h.LoginTimestamp <= request.EndDate);
 
             if (request.Format == ReportFormat.Excel)
             {

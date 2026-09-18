@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Slush.Application.DTOs.Admin;
 using Slush.Application.DTOs.Auth;
-using Slush.Infrastructure.Data;
+using Slush.Application.Interfaces;
+using Slush.Domain.Entities;
 
 namespace Slush.API.Controllers;
 
@@ -12,17 +14,19 @@ namespace Slush.API.Controllers;
 [Authorize(Roles = "SuperAdmin, Admin, Moderator")]
 public class AdminController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IUnitOfWork _uow;
+    private readonly IMapper _mapper;
 
-    public AdminController(AppDbContext context)
+    public AdminController(IUnitOfWork uow, IMapper mapper)
     {
-        _context = context;
+        _uow = uow;
+        _mapper = mapper;
     }
 
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers([FromQuery] string? searchTerm = null)
     {
-        var query = _context.Users.AsQueryable();
+        var query = _uow.Repository<User>().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
@@ -34,22 +38,19 @@ public class AdminController : ControllerBase
 
         var users = await query
             .OrderByDescending(u => u.CreatedAt)
-            .Select(u => new UserListDto(
-                u.Id,
-                u.Username,
-                u.Email,
-                u.IsBanned,
-                u.Role.ToString(),
-                u.CreatedAt))
             .ToListAsync();
 
-        return Ok(users);
+        var usersDto = _mapper.Map<IEnumerable<UserListDto>>(users);
+
+        return Ok(usersDto);
     }
 
     [HttpPost("users/{userId}/toggle-ban")]
     public async Task<IActionResult> ToggleBan(Guid userId)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
         if (user == null) return NotFound(new { message = "User not found" });
 
         if (user.Email == User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value)
@@ -64,7 +65,9 @@ public class AdminController : ControllerBase
         }
 
         user.IsBanned = !user.IsBanned;
-        await _context.SaveChangesAsync();
+
+        userRepo.Update(user);
+        await _uow.SaveChangesAsync();
 
         string status = user.IsBanned ? "banned" : "unbanned";
         return Ok(new { message = $"User {user.Username} has been {status}." });
@@ -74,7 +77,9 @@ public class AdminController : ControllerBase
     [Authorize(Roles = "SuperAdmin")]
     public async Task<IActionResult> UpdateRole(Guid userId, [FromBody] UpdateUserRoleRequestDto request)
     {
-        var user = await _context.Users.FindAsync(userId);
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
         if (user == null) return NotFound(new { message = "User not found." });
 
         if (user.Email == User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value)
@@ -83,7 +88,9 @@ public class AdminController : ControllerBase
         }
 
         user.Role = request.NewRole;
-        await _context.SaveChangesAsync();
+
+        userRepo.Update(user);
+        await _uow.SaveChangesAsync();
 
         return Ok(new { message = $"User role updated to {request.NewRole}" });
     }

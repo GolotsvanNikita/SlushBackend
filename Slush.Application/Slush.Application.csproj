@@ -7,11 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Mappings\" />
+    <ProjectReference Include="..\Slush.Domain\Slush.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Slush.Domain\Slush.Domain.csproj" />
+    <PackageReference Include="AutoMapper" Version="16.2.0" />
   </ItemGroup>
 
 </Project>

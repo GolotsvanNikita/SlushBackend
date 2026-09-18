@@ -1,21 +1,17 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Slush.Application.DTOs.Analytics;
 using Slush.Application.Interfaces;
-using Slush.Infrastructure.Data;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Slush.Domain.Entities;
 
 namespace Slush.Infrastructure.Services
 {
     public class AnalyticsService : IAnalyticsService
     {
-        private readonly AppDbContext _db;
+        private readonly IUnitOfWork _uow;
 
-        public AnalyticsService(AppDbContext db)
+        public AnalyticsService(IUnitOfWork uow)
         {
-            _db = db;
+            _uow = uow;
         }
 
         public async Task<IEnumerable<RetentionPointDto>> GetRetentionAsync()
@@ -24,11 +20,14 @@ namespace Slush.Infrastructure.Services
             var daysToCheck = new[] { 1, 3, 7, 14, 30 };
             var now = DateTime.UtcNow.Date;
 
+            var usersRepo = _uow.Repository<User>().AsQueryable();
+            var historyRepo = _uow.Repository<UserLoginHistory>().AsQueryable();
+
             foreach (var day in daysToCheck)
             {
                 var cutoffDate = now.AddDays(-day);
 
-                var eligibleUsers = _db.Users.Where(u => u.CreatedAt.Date <= cutoffDate);
+                var eligibleUsers = usersRepo.Where(u => u.CreatedAt.Date <= cutoffDate);
                 int eligibleCount = await eligibleUsers.CountAsync();
 
                 if (eligibleCount == 0)
@@ -38,7 +37,7 @@ namespace Slush.Infrastructure.Services
                 }
 
                 int retainedCount = await eligibleUsers
-                    .Where(u => _db.UserLoginHistories.Any(h =>
+                    .Where(u => historyRepo.Any(h =>
                         h.UserId == u.Id &&
                         h.LoginTimestamp.Date == u.CreatedAt.Date.AddDays(day)))
                     .CountAsync();
@@ -54,7 +53,7 @@ namespace Slush.Infrastructure.Services
         {
             var cutoffDate = DateTime.UtcNow.AddDays(-inactivityThresholdDays);
 
-            return await _db.Users
+            return await _uow.Repository<User>().AsQueryable()
                 .Where(u => !u.IsBanned)
                 .Where(u => (u.LastLoginAt != null && u.LastLoginAt < cutoffDate) ||
                             (u.LastLoginAt == null && u.CreatedAt < cutoffDate))
@@ -71,8 +70,10 @@ namespace Slush.Infrastructure.Services
         public async Task<IEnumerable<CohortRowDto>> GetCohortsAsync()
         {
             var cohorts = new List<CohortRowDto>();
+            var usersRepo = _uow.Repository<User>().AsQueryable();
+            var historyRepo = _uow.Repository<UserLoginHistory>().AsQueryable();
 
-            var cohortUsers = await _db.Users
+            var cohortUsers = await usersRepo
                 .GroupBy(u => new { u.CreatedAt.Year, u.CreatedAt.Month })
                 .Select(g => new {
                     g.Key.Year,
@@ -87,7 +88,6 @@ namespace Slush.Infrastructure.Services
                 int totalUsers = cohort.UserIds.Count;
 
                 var retentionRates = new List<double> { 100.0 };
-
                 DateTime cohortStart = new DateTime(cohort.Year, cohort.Month, 1, 0, 0, 0, DateTimeKind.Utc);
                 int monthsPassed = ((DateTime.UtcNow.Year - cohort.Year) * 12) + DateTime.UtcNow.Month - cohort.Month;
 
@@ -95,7 +95,7 @@ namespace Slush.Infrastructure.Services
                 {
                     var targetMonth = cohortStart.AddMonths(m);
 
-                    int activeUsersCount = await _db.UserLoginHistories
+                    int activeUsersCount = await historyRepo
                         .Where(h => cohort.UserIds.Contains(h.UserId) &&
                                     h.LoginTimestamp.Year == targetMonth.Year &&
                                     h.LoginTimestamp.Month == targetMonth.Month)
@@ -105,9 +105,9 @@ namespace Slush.Infrastructure.Services
 
                     double rate = Math.Round((double)activeUsersCount / totalUsers * 100, 2);
                     retentionRates.Add(rate);
+                }
 
                 cohorts.Add(new CohortRowDto(monthStr, totalUsers, retentionRates));
-                }
             }
 
             return cohorts;
@@ -115,15 +115,18 @@ namespace Slush.Infrastructure.Services
 
         public async Task<PeriodComparisonDto> GetComparisonAsync(DateTime fromA, DateTime toA, DateTime fromB, DateTime toB)
         {
-            var usersA = await _db.Users.CountAsync(u => u.CreatedAt >= fromA && u.CreatedAt <= toA);
-            var usersB = await _db.Users.CountAsync(u => u.CreatedAt >= fromB && u.CreatedAt <= toB);
+            var usersRepo = _uow.Repository<User>().AsQueryable();
+            var snapshotsRepo = _uow.Repository<ActivitySnapshot>().AsQueryable();
+
+            var usersA = await usersRepo.CountAsync(u => u.CreatedAt >= fromA && u.CreatedAt <= toA);
+            var usersB = await usersRepo.CountAsync(u => u.CreatedAt >= fromB && u.CreatedAt <= toB);
             double usersGrowth = usersA == 0 ? 0 : Math.Round(((double)(usersB - usersA) / usersA) * 100, 2);
 
-            var activeA = await _db.ActivitySnapshots
+            var activeA = await snapshotsRepo
                 .Where(s => s.Timestamp >= fromA && s.Timestamp <= toA)
                 .MaxAsync(s => (int?)s.ActiveCount) ?? 0;
 
-            var activeB = await _db.ActivitySnapshots
+            var activeB = await snapshotsRepo
                 .Where(s => s.Timestamp >= fromB && s.Timestamp <= toB)
                 .MaxAsync(s => (int?)s.ActiveCount) ?? 0;
             double activeGrowth = activeA == 0 ? 0 : Math.Round(((double)(activeB - activeA) / activeA) * 100, 2);

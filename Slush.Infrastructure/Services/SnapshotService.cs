@@ -1,21 +1,16 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Slush.Application.Interfaces;
+﻿using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
-using Slush.Infrastructure.Data;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Slush.Infrastructure.Services
 {
     public class SnapshotService : ISnapshotService
     {
-        private readonly AppDbContext _db;
+        private readonly IUnitOfWork _uow;
         private readonly PresenceStateService _presenceService;
 
-        public SnapshotService(AppDbContext db, PresenceStateService presenceService)
+        public SnapshotService(IUnitOfWork uow, PresenceStateService presenceService)
         {
-            _db = db;
+            _uow = uow;
             _presenceService = presenceService;
         }
 
@@ -23,7 +18,8 @@ namespace Slush.Infrastructure.Services
         {
             int currentOnline = _presenceService.ActiveConnections.Count;
 
-            _db.ActivitySnapshots.Add(new ActivitySnapshot
+            var activityRepo = _uow.Repository<ActivitySnapshot>();
+            await activityRepo.AddAsync(new ActivitySnapshot
             {
                 ActiveCount = currentOnline,
                 Timestamp = DateTime.UtcNow
@@ -40,9 +36,14 @@ namespace Slush.Infrastructure.Services
                 })
                 .ToList();
 
-            _db.GameStatsSnapshots.AddRange(gameStats);
+            var gameStatsRepo = _uow.Repository<GameStatsSnapshot>();
 
-            await _db.SaveChangesAsync();
+            foreach (var stat in gameStats)
+            {
+                await gameStatsRepo.AddAsync(stat);
+            }
+
+            await _uow.SaveChangesAsync();
         }
 
         public async Task SyncGameCatalogAsync()

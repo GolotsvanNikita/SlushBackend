@@ -1,12 +1,10 @@
-﻿using BCrypt.Net;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Slush.Application.DTOs.Auth;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
 using Slush.Domain.Enums;
-using Slush.Infrastructure.Data;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -15,20 +13,24 @@ namespace Slush.Infrastructure.Services;
 
 public class AuthService : IAuthService
 {
-    private readonly AppDbContext _context;
+    private readonly IUnitOfWork _uow;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
 
-    public AuthService(AppDbContext context, IEmailService emailService, IConfiguration configuration)
+    public AuthService(IUnitOfWork uow, IEmailService emailService, IConfiguration configuration)
     {
-        _context = context;
+        _uow = uow;
         _emailService = emailService;
         _configuration = configuration;
     }
 
     public async Task RegisterAsync(RegisterDto request)
     {
-        bool userExists = await _context.Users.AnyAsync(u => u.Email == request.Email || u.Username == request.Username);
+        var userRepository = _uow.Repository<User>();
+
+        bool userExists = await userRepository.AsQueryable()
+            .AnyAsync(u => u.Email == request.Email || u.Username == request.Username);
+
         if (userExists) throw new Exception("User with this username or email already exists.");
 
         var user = new User
@@ -39,18 +41,20 @@ public class AuthService : IAuthService
             IsEmailVerified = false
         };
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        await userRepository.AddAsync(user);
+        await _uow.SaveChangesAsync();
 
         string code = new Random().Next(10000, 99999).ToString();
-        _context.VerificationCodes.Add(new VerificationCode
+        var verificationCode = new VerificationCode
         {
             UserId = user.Id,
             Code = code,
             ExpiresAt = DateTime.UtcNow.AddMinutes(15),
             Purpose = CodePurpose.EmailVerification
-        });
-        await _context.SaveChangesAsync();
+        };
+
+        await _uow.Repository<VerificationCode>().AddAsync(verificationCode);
+        await _uow.SaveChangesAsync();
 
         string emailBody = $@"
             <div style='font-family: Arial, sans-serif; color: #fff; background-color: #0d1b2a; padding: 20px; border-radius: 10px;'>
@@ -64,23 +68,30 @@ public class AuthService : IAuthService
 
     public async Task VerifyEmailAsync(VerifyCodeDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null) throw new Exception("User not found.");
 
-        var verificationCode = await _context.VerificationCodes
+        var codeRepo = _uow.Repository<VerificationCode>();
+        var verificationCode = await codeRepo.AsQueryable()
             .FirstOrDefaultAsync(vc => vc.UserId == user.Id && vc.Code == request.Code && vc.Purpose == CodePurpose.EmailVerification);
 
         if (verificationCode == null) throw new Exception("Invalid verification code.");
         if (verificationCode.ExpiresAt < DateTime.UtcNow) throw new Exception("Verification code has expired.");
 
         user.IsEmailVerified = true;
-        _context.VerificationCodes.Remove(verificationCode);
-        await _context.SaveChangesAsync();
+
+        _uow.Repository<User>().Update(user);
+        codeRepo.Remove(verificationCode);
+
+        await _uow.SaveChangesAsync();
     }
 
     public async Task<AuthResponseDto> LoginAsync(LoginDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.LoginOrEmail || u.Username == request.LoginOrEmail);
+        var user = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => u.Email == request.LoginOrEmail || u.Username == request.LoginOrEmail);
+
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new Exception("Invalid username or password.");
 
@@ -88,44 +99,49 @@ public class AuthService : IAuthService
         if (user.IsBanned) throw new Exception("This account has been banned by an administrator.");
 
         user.LastLoginAt = DateTime.UtcNow;
+        _uow.Repository<User>().Update(user);
 
-        _context.UserLoginHistories.Add(new UserLoginHistory
+        var loginHistory = new UserLoginHistory
         {
             UserId = user.Id,
             LoginTimestamp = DateTime.UtcNow
-        });
+        };
+        await _uow.Repository<UserLoginHistory>().AddAsync(loginHistory);
 
         string accessToken = GenerateJwtToken(user);
         string refreshToken = GenerateRefreshTokenString();
 
-
-        _context.RefreshTokens.Add(new RefreshToken
+        var newRefreshToken = new RefreshToken
         {
             Token = refreshToken,
             UserId = user.Id,
             Expires = DateTime.UtcNow.AddDays(7)
-        });
+        };
+        await _uow.Repository<RefreshToken>().AddAsync(newRefreshToken);
 
-        await _context.SaveChangesAsync();
+        await _uow.SaveChangesAsync();
 
         return new AuthResponseDto(accessToken, refreshToken);
     }
 
     public async Task ForgotPasswordAsync(ForgotPasswordDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null) return;
 
         string code = new Random().Next(10000, 99999).ToString();
 
-        _context.VerificationCodes.Add(new VerificationCode
+        var verificationCode = new VerificationCode
         {
             UserId = user.Id,
             Code = code,
             ExpiresAt = DateTime.UtcNow.AddMinutes(15),
             Purpose = CodePurpose.PasswordReset
-        });
-        await _context.SaveChangesAsync();
+        };
+
+        await _uow.Repository<VerificationCode>().AddAsync(verificationCode);
+        await _uow.SaveChangesAsync();
 
         string emailBody = $"<h2>Password Reset</h2><p>Your password reset code is: <b>{code}</b></p>";
         await _emailService.SendEmailAsync(user.Email, "Slush - Password Reset", emailBody);
@@ -133,52 +149,58 @@ public class AuthService : IAuthService
 
     public async Task ResetPasswordAsync(ResetPasswordDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null) throw new Exception("User not found.");
 
-        var verificationCode = await _context.VerificationCodes
+        var codeRepo = _uow.Repository<VerificationCode>();
+        var verificationCode = await codeRepo.AsQueryable()
             .FirstOrDefaultAsync(vc => vc.UserId == user.Id && vc.Code == request.Code && vc.Purpose == CodePurpose.PasswordReset);
 
         if (verificationCode == null) throw new Exception("Invalid reset code.");
         if (verificationCode.ExpiresAt < DateTime.UtcNow) throw new Exception("Reset code has expired.");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        _context.VerificationCodes.Remove(verificationCode);
 
-        await _context.SaveChangesAsync();
+        _uow.Repository<User>().Update(user);
+        codeRepo.Remove(verificationCode);
+
+        await _uow.SaveChangesAsync();
     }
 
     public async Task ResendVerificationCodeAsync(ResendVerificationCodeDto request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        var user = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null) return;
+        if (user.IsEmailVerified) throw new Exception("Email is already verified.");
 
-        if (user.IsEmailVerified)
-        {
-            throw new Exception("Email is already verified.");
-        }
-
-        var existingCodes = await _context.VerificationCodes
+        var codeRepo = _uow.Repository<VerificationCode>();
+        var existingCodes = await codeRepo.AsQueryable()
             .Where(vc => vc.UserId == user.Id && vc.Purpose == CodePurpose.EmailVerification)
             .ToListAsync();
 
         if (existingCodes.Any())
         {
-            _context.VerificationCodes.RemoveRange(existingCodes);
+            foreach (var code in existingCodes)
+            {
+                codeRepo.Remove(code);
+            }
         }
 
         string newCode = new Random().Next(10000, 99999).ToString();
 
-        _context.VerificationCodes.Add(new VerificationCode
+        var verificationCode = new VerificationCode
         {
             UserId = user.Id,
             Code = newCode,
             ExpiresAt = DateTime.UtcNow.AddMinutes(15),
             Purpose = CodePurpose.EmailVerification
-        });
+        };
 
-        await _context.SaveChangesAsync();
+        await codeRepo.AddAsync(verificationCode);
+        await _uow.SaveChangesAsync();
 
         string emailBody = $@"
         <div style='font-family: Arial, sans-serif; color: #fff; background-color: #0d1b2a; padding: 20px; border-radius: 10px;'>
@@ -216,7 +238,9 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto request)
     {
-        var existingToken = await _context.RefreshTokens
+        var refreshTokenRepo = _uow.Repository<RefreshToken>();
+
+        var existingToken = await refreshTokenRepo.AsQueryable()
             .Include(rt => rt.User)
             .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
 
@@ -227,18 +251,20 @@ public class AuthService : IAuthService
         if (user.IsBanned) throw new Exception("This account is banned.");
 
         existingToken.Revoked = DateTime.UtcNow;
+        refreshTokenRepo.Update(existingToken);
 
         string newAccessToken = GenerateJwtToken(user);
         string newRefreshToken = GenerateRefreshTokenString();
 
-        _context.RefreshTokens.Add(new RefreshToken
+        var newRefTokenEntity = new RefreshToken
         {
             Token = newRefreshToken,
             UserId = user.Id,
             Expires = DateTime.UtcNow.AddDays(7)
-        });
+        };
 
-        await _context.SaveChangesAsync();
+        await refreshTokenRepo.AddAsync(newRefTokenEntity);
+        await _uow.SaveChangesAsync();
 
         return new AuthResponseDto(newAccessToken, newRefreshToken);
     }

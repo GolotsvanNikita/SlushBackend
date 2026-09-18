@@ -4,7 +4,6 @@ using Slush.Application.DTOs.Alerts;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
 using Slush.Domain.Enums;
-using Slush.Infrastructure.Data;
 using System;
 using System.Threading.Tasks;
 
@@ -12,24 +11,24 @@ namespace Slush.Infrastructure.Services
 {
     public class NotificationService : INotificationService
     {
-        private readonly AppDbContext _context;
+        private readonly IUnitOfWork _uow;
         private readonly IDataProtector _protector;
 
-        public NotificationService(AppDbContext context, IDataProtectionProvider dataProtectionProvider)
+        public NotificationService(IUnitOfWork uow, IDataProtectionProvider dataProtectionProvider)
         {
-            _context = context;
-
+            _uow = uow;
             _protector = dataProtectionProvider.CreateProtector("Slush.NotificationConfigs.SecureTokens");
         }
 
         public async Task UpdateConfigAsync(NotificationChannel channel, UpdateNotificationChannelRequestDto request)
         {
-            var config = await _context.NotificationConfigs.FirstOrDefaultAsync(c => c.Channel == channel);
+            var configRepo = _uow.Repository<NotificationConfig>();
+            var config = await configRepo.AsQueryable().FirstOrDefaultAsync(c => c.Channel == channel);
 
             if (config == null)
             {
                 config = new NotificationConfig { Channel = channel };
-                _context.NotificationConfigs.Add(config);
+                await configRepo.AddAsync(config);
             }
 
             config.IsEnabled = request.IsEnabled;
@@ -45,12 +44,13 @@ namespace Slush.Infrastructure.Services
 
             config.UpdatedAt = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync();
+            await _uow.SaveChangesAsync();
         }
 
         public async Task<UpdateNotificationChannelRequestDto> GetConfigAsync(NotificationChannel channel)
         {
-            var config = await _context.NotificationConfigs.FirstOrDefaultAsync(c => c.Channel == channel);
+            var config = await _uow.Repository<NotificationConfig>().AsQueryable()
+                .FirstOrDefaultAsync(c => c.Channel == channel);
 
             string? decryptedData = null;
 
