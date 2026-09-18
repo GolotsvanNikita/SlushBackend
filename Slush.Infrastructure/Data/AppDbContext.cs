@@ -15,6 +15,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<GameStatsSnapshot> GameStatsSnapshots { get; set; }
     public DbSet<AdminActionLog> AdminActionLogs { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<WishlistItem> WishlistItems { get; set; }
+    public DbSet<CartItem> CartItems { get; set; }
+    public DbSet<GameReview> GameReviews { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
