@@ -74,6 +74,7 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<IFreeToGameService, Slush.Infrastructure.Services.FreeToGameService>();
 builder.Services.AddHttpClient<ICatalogService, Slush.Infrastructure.Services.CheapSharkCatalogService>(client =>
 {
     client.DefaultRequestHeaders.Add("User-Agent", "SlushPlatform/1.0 (contact@slush.com)");
