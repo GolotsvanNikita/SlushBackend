@@ -18,5 +18,15 @@ namespace Slush.Domain.Entities
 
         public UserRole Role { get; set; } = UserRole.User;
         public bool IsBanned { get; set; } = false;
+
+        public string Bio { get; set; } = string.Empty;
+        public string AvatarUrl { get; set; } = string.Empty;
+        public string CoverUrl { get; set; } = string.Empty;
+        public int Level { get; set; } = 1;
+        public int CurrentXp { get; set; } = 0;
+
+        public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();
+        public ICollection<ProfileComment> ProfileComments { get; set; } = new List<ProfileComment>(); // Комментарии на ЕГО стене
+        public ICollection<UserGuide> Guides { get; set; } = new List<UserGuide>();
     }
 }

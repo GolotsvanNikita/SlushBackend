@@ -18,6 +18,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WishlistItem> WishlistItems { get; set; }
     public DbSet<CartItem> CartItems { get; set; }
     public DbSet<GameReview> GameReviews { get; set; }
+    public DbSet<Badge> Badges { get; set; }
+    public DbSet<UserBadge> UserBadges { get; set; }
+    public DbSet<Friendship> Friendships { get; set; }
+    public DbSet<ProfileComment> ProfileComments { get; set; }
+    public DbSet<UserGuide> UserGuides { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,5 +35,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<User>()
             .HasIndex(u => u.Username)
             .IsUnique();
+        modelBuilder.Entity<UserBadge>()
+            .HasKey(ub => new { ub.UserId, ub.BadgeId });
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.User)
+            .WithMany()
+            .HasForeignKey(f => f.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Friendship>()
+            .HasOne(f => f.Friend)
+            .WithMany()
+            .HasForeignKey(f => f.FriendId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ProfileComment>()
+            .HasOne(pc => pc.ProfileUser)
+            .WithMany(u => u.ProfileComments)
+            .HasForeignKey(pc => pc.ProfileUserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProfileComment>()
+            .HasOne(pc => pc.Author)
+            .WithMany()
+            .HasForeignKey(pc => pc.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

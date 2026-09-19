@@ -73,11 +73,80 @@ public class SteamCatalogService : ISteamCatalogService
             }
         }
 
+        if (data.TryGetProperty("metacritic", out var metacritic) && metacritic.TryGetProperty("score", out var score))
+        {
+            result.AverageRating = Math.Round(score.GetDouble() / 20, 1);
+        }
+
         if (data.TryGetProperty("dlc", out var dlcs))
         {
-            foreach (var dlc in dlcs.EnumerateArray())
+            var dlcIds = dlcs.EnumerateArray().Select(d => d.GetInt32()).Take(10).ToList();
+
+            if (dlcIds.Any())
             {
-                result.DLCs.Add(dlc.GetInt32());
+                var dlcUrl = $"https://store.steampowered.com/api/appdetails?appids={string.Join(",", dlcIds)}&cc=us&l=english";
+                var dlcResponse = await _httpClient.GetAsync(dlcUrl);
+
+                if (dlcResponse.IsSuccessStatusCode)
+                {
+                    var dlcJson = await dlcResponse.Content.ReadAsStringAsync();
+                    using var dlcDoc = JsonDocument.Parse(dlcJson);
+
+                    foreach (var dlcId in dlcIds)
+                    {
+                        var idStr = dlcId.ToString();
+                        if (dlcDoc.RootElement.TryGetProperty(idStr, out var dItem) && dItem.GetProperty("success").GetBoolean())
+                        {
+                            var dData = dItem.GetProperty("data");
+                            result.DLCs.Add(new DlcDto
+                            {
+                                Id = idStr,
+                                Title = dData.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                                Description = dData.TryGetProperty("short_description", out var sd) ? sd.GetString() ?? "" : "",
+                                Image = dData.TryGetProperty("header_image", out var hi) ? hi.GetString() ?? "" : "",
+                                Price = dData.TryGetProperty("price_overview", out var po) ? po.GetProperty("final").GetInt32() / 100m : 0
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        if (data.TryGetProperty("packages", out var packages))
+        {
+            var packageIds = packages.EnumerateArray().Select(p => p.GetInt32()).Take(5).ToList();
+
+            if (packageIds.Any())
+            {
+                var pkgUrl = $"https://store.steampowered.com/api/packagedetails?packageids={string.Join(",", packageIds)}&cc=us&l=english";
+                var pkgResponse = await _httpClient.GetAsync(pkgUrl);
+
+                if (pkgResponse.IsSuccessStatusCode)
+                {
+                    var pkgJson = await pkgResponse.Content.ReadAsStringAsync();
+                    using var pkgDoc = JsonDocument.Parse(pkgJson);
+
+                    foreach (var pkgId in packageIds)
+                    {
+                        var idStr = pkgId.ToString();
+                        if (pkgDoc.RootElement.TryGetProperty(idStr, out var pItem) && pItem.GetProperty("success").GetBoolean())
+                        {
+                            var pData = pItem.GetProperty("data");
+
+                            var bundleDesc = pData.TryGetProperty("page_content", out var pc) ? pc.GetString() ?? "" : "";
+                            if (bundleDesc.Length > 200) bundleDesc = bundleDesc.Substring(0, 200) + "...";
+
+                            result.Bundles.Add(new BundleDto
+                            {
+                                Id = idStr,
+                                Title = pData.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                                Description = bundleDesc,
+                                Image = pData.TryGetProperty("header_image", out var hi) ? hi.GetString() ?? (pData.TryGetProperty("small_logo", out var sl) ? sl.GetString() ?? "" : "") : "",
+                                Price = pData.TryGetProperty("price", out var priceInfo) ? priceInfo.GetProperty("final").GetInt32() / 100m : 0
+                            });
+                        }
+                    }
+                }
             }
         }
 

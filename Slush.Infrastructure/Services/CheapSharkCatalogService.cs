@@ -2,6 +2,7 @@
 using Slush.Application.DTOs.Common;
 using Slush.Application.Interfaces;
 using Slush.Domain.Enums;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -16,58 +17,122 @@ namespace Slush.Infrastructure.Services
             _httpClient = httpClient;
         }
 
-        public async Task<PagedResultDto<UnifiedGameDto>> SearchAsync(string query, GameSource? source, int? minDiscount, int page, int pageSize)
+        public async Task<PagedResultDto<UnifiedGameDto>> SearchAsync(
+            string query,
+            GameSource? source,
+            int? minDiscount,
+            int page,
+            int pageSize)
         {
-            var url = $"https://www.cheapshark.com/api/1.0/deals?pageSize={pageSize}&pageNumber={page - 1}";
+            var rawDeals = new List<CheapSharkDeal>();
+            var tasks = new List<Task<HttpResponseMessage>>();
 
-            if (!string.IsNullOrWhiteSpace(query))
+            for (int i = 0; i < 3; i++)
             {
-                url += $"&title={Uri.EscapeDataString(query)}";
+                int cheapSharkPage = ((page - 1) * 3) + i;
+                var url = $"https://www.cheapshark.com/api/1.0/deals?pageSize=60&pageNumber={cheapSharkPage}";
+
+                if (!string.IsNullOrWhiteSpace(query))
+                {
+                    url += $"&title={Uri.EscapeDataString(query)}";
+                }
+
+                tasks.Add(_httpClient.GetAsync(url));
             }
 
-            var response = await _httpClient.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
+            var responses = await Task.WhenAll(tasks);
+
+            foreach (var response in responses)
+            {
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    var pageDeals = JsonSerializer.Deserialize<List<CheapSharkDeal>>(jsonString);
+                    if (pageDeals != null)
+                    {
+                        rawDeals.AddRange(pageDeals);
+                    }
+                }
+            }
+
+            if (!rawDeals.Any())
             {
                 return new PagedResultDto<UnifiedGameDto>(new List<UnifiedGameDto>(), 0, page, pageSize);
             }
 
-            var jsonString = await response.Content.ReadAsStringAsync();
-            var deals = JsonSerializer.Deserialize<List<CheapSharkDeal>>(jsonString);
-
-            if (deals == null || !deals.Any())
-                return new PagedResultDto<UnifiedGameDto>(new List<UnifiedGameDto>(), 0, page, pageSize);
-
-            var items = deals
+            var itemsQuery = rawDeals
                 .Where(d => !string.IsNullOrWhiteSpace(d.SteamAppID))
-                .Select(d => new UnifiedGameDto(
-                    d.SteamAppID!,
-                    d.Title ?? "Unknown Title",
-                    MapStoreID(d.StoreID),
-                    decimal.TryParse(d.SalePrice, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var price) ? price : 0,
-                    decimal.TryParse(d.Savings, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var savings) ? (int)Math.Round(savings) : 0,
-                    d.Thumb ?? "",
-                    $"https://www.cheapshark.com/redirect?dealID={d.DealID}"
-                )).AsQueryable();
+                .Select(d =>
+                {
+                    var price = ParseDecimal(d.SalePrice);
+                    var oldPrice = ParseDecimal(d.NormalPrice);
+                    var discount = ParseDecimal(d.Savings);
+
+                    return new UnifiedGameDto(
+                        d.SteamAppID!,
+                        d.Title ?? "Unknown Title",
+                        MapStoreID(d.StoreID),
+                        price,
+                        oldPrice,
+                        (int)Math.Round(discount),
+                        d.Thumb ?? "",
+                        $"https://www.cheapshark.com/redirect?dealID={d.DealID}",
+                        d.ReleaseDate?.ToString() ?? ""
+                    );
+                })
+                .GroupBy(g => g.Id)
+                .Select(group => group.OrderBy(g => g.Price).First())
+                .AsQueryable();
 
             if (source.HasValue)
-                items = items.Where(g => g.Source == source.Value);
+            {
+                itemsQuery = itemsQuery.Where(g => g.Source == source.Value);
+            }
 
             if (minDiscount.HasValue)
-                items = items.Where(g => g.DiscountPercent >= minDiscount.Value);
+            {
+                itemsQuery = itemsQuery.Where(g => g.DiscountPercent >= minDiscount.Value);
+            }
 
-            var finalItems = items.ToList();
-            int totalCount = finalItems.Count == pageSize ? page * pageSize + 1 : (page - 1) * pageSize + finalItems.Count;
+            var finalItems = itemsQuery.Take(pageSize).ToList();
 
-            return new PagedResultDto<UnifiedGameDto>(finalItems, totalCount, page, pageSize);
+            var totalCount = finalItems.Count == pageSize ? page * pageSize + 10 : (page - 1) * pageSize + finalItems.Count;
+
+            return new PagedResultDto<UnifiedGameDto>(
+                finalItems,
+                totalCount,
+                page,
+                pageSize
+            );
         }
 
-        private GameSource MapStoreID(string? storeId) => storeId switch
+        private static decimal ParseDecimal(string? value)
         {
-            "1" => GameSource.Steam,
-            "7" => GameSource.GOG,
-            "25" => GameSource.EpicGames,
-            _ => GameSource.FreeToGame
-        };
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+
+            return decimal.TryParse(
+                value,
+                NumberStyles.Any,
+                CultureInfo.InvariantCulture,
+                out var result
+            )
+                ? result
+                : 0;
+        }
+
+        private static GameSource MapStoreID(string? storeId)
+        {
+            return storeId switch
+            {
+                "1" => GameSource.Steam,
+                "7" => GameSource.GOG,
+                "25" => GameSource.EpicGames,
+                _ => GameSource.FreeToGame
+            };
+        }
     }
 
     public class CheapSharkDeal
@@ -84,6 +149,9 @@ namespace Slush.Infrastructure.Services
         [JsonPropertyName("salePrice")]
         public string? SalePrice { get; set; }
 
+        [JsonPropertyName("normalPrice")]
+        public string? NormalPrice { get; set; }
+
         [JsonPropertyName("savings")]
         public string? Savings { get; set; }
 
@@ -92,5 +160,8 @@ namespace Slush.Infrastructure.Services
 
         [JsonPropertyName("steamAppID")]
         public string? SteamAppID { get; set; }
+
+        [JsonPropertyName("releaseDate")]
+        public long? ReleaseDate { get; set; }
     }
 }

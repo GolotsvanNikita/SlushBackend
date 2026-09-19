@@ -17,8 +17,8 @@ public class UnifiedGameDetailsDto
 
     public List<string> Tags { get; set; } = new();
 
-    public List<object> DLCs { get; set; } = new();
-    public List<object> Bundles { get; set; } = new();
+    public List<DlcDto> DLCs { get; set; } = new();
+    public List<BundleDto> Bundles { get; set; } = new();
 
     public double AverageRating { get; set; }
     public List<GameReviewDto> Reviews { get; set; } = new();
@@ -46,4 +46,22 @@ public class FriendPlayingDto
 {
     public string Username { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+}
+
+public class DlcDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Image { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+public class BundleDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Image { get; set; } = string.Empty;
+    public decimal Price { get; set; }
 }

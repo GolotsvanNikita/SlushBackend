@@ -71,6 +71,7 @@ builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IProfileService, Slush.Infrastructure.Services.ProfileService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();

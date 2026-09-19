@@ -1,7 +1,4 @@
 ﻿using Slush.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Slush.Application.DTOs.Catalog
 {
