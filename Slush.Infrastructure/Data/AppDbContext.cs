@@ -23,6 +23,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<ProfileComment> ProfileComments { get; set; }
     public DbSet<UserGuide> UserGuides { get; set; }
+    public DbSet<UserGame> UserGames { get; set; }
+    public DbSet<UserPost> UserPosts { get; set; }
+    public DbSet<UserScreenshot> UserScreenshots { get; set; }
+    public DbSet<UserVideo> UserVideos { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -164,4 +164,90 @@ public class ProfileService : IProfileService
 
         return new PagedResultDto<ProfileGuideDto>(guides, totalCount, page, pageSize);
     }
+
+    public async Task<PagedResultDto<ProfileGameDto>> GetProfileGamesAsync(string username, int page, int pageSize)
+    {
+        var query = _uow.Repository<UserGame>().AsQueryable()
+            .Where(g => g.User.Username.ToLower() == username.ToLower())
+            .OrderByDescending(g => g.AcquiredAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(g => new ProfileGameDto
+            {
+                Id = g.GameId,
+                Title = g.Title,
+                ImageUrl = g.ImageUrl,
+                Price = g.Price
+            }).ToListAsync();
+
+        return new PagedResultDto<ProfileGameDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<PagedResultDto<ProfilePostDto>> GetProfilePostsAsync(string username, int page, int pageSize)
+    {
+        var query = _uow.Repository<UserPost>().AsQueryable()
+            .Include(p => p.User)
+            .Where(p => p.User.Username.ToLower() == username.ToLower())
+            .OrderByDescending(p => p.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(p => new ProfilePostDto
+            {
+                Id = p.Id.ToString(),
+                Title = p.Title,
+                Text = p.Text,
+                ImageUrl = p.ImageUrl,
+                AuthorUsername = p.User.Username,
+                AuthorAvatarUrl = p.User.AvatarUrl,
+                CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd"),
+                LikesCount = p.LikesCount,
+                CommentsCount = p.CommentsCount
+            }).ToListAsync();
+
+        return new PagedResultDto<ProfilePostDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<PagedResultDto<ProfileScreenshotDto>> GetProfileScreenshotsAsync(string username, int page, int pageSize)
+    {
+        var query = _uow.Repository<UserScreenshot>().AsQueryable()
+            .Where(s => s.User.Username.ToLower() == username.ToLower())
+            .OrderByDescending(s => s.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(s => new ProfileScreenshotDto
+            {
+                Id = s.Id.ToString(),
+                ImageUrl = s.ImageUrl,
+                GameTitle = s.GameTitle,
+                GameId = s.GameId,
+                CreatedAt = s.CreatedAt.ToString("yyyy-MM-dd")
+            }).ToListAsync();
+
+        return new PagedResultDto<ProfileScreenshotDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<PagedResultDto<ProfileVideoDto>> GetProfileVideosAsync(string username, int page, int pageSize)
+    {
+        var query = _uow.Repository<UserVideo>().AsQueryable()
+            .Where(v => v.User.Username.ToLower() == username.ToLower())
+            .OrderByDescending(v => v.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(v => new ProfileVideoDto
+            {
+                Id = v.Id.ToString(),
+                VideoUrl = v.VideoUrl,
+                ThumbnailUrl = v.ThumbnailUrl,
+                Title = v.Title,
+                GameTitle = v.GameTitle,
+                GameId = v.GameId,
+                CreatedAt = v.CreatedAt.ToString("yyyy-MM-dd")
+            }).ToListAsync();
+
+        return new PagedResultDto<ProfileVideoDto>(items, totalCount, page, pageSize);
+    }
 }

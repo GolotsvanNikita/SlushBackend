@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Slush.Infrastructure.Data;
@@ -11,9 +12,11 @@ using Slush.Infrastructure.Data;
 namespace Slush.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260919204929_relationUpdate")]
+    partial class relationUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -427,40 +430,6 @@ namespace Slush.Infrastructure.Migrations
                     b.ToTable("UserBadges");
                 });
 
-            modelBuilder.Entity("Slush.Domain.Entities.UserGame", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AcquiredAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("GameId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("numeric");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserGames");
-                });
-
             modelBuilder.Entity("Slush.Domain.Entities.UserGuide", b =>
                 {
                     b.Property<Guid>("Id")
@@ -512,113 +481,6 @@ namespace Slush.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("UserLoginHistories");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserPost", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("CommentsCount")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("LikesCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserPosts");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserScreenshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("GameId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("GameTitle")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserScreenshots");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserVideo", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("GameId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("GameTitle")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ThumbnailUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("VideoUrl")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserVideos");
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.VerificationCode", b =>
@@ -760,17 +622,6 @@ namespace Slush.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Slush.Domain.Entities.UserGame", b =>
-                {
-                    b.HasOne("Slush.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("Slush.Domain.Entities.UserGuide", b =>
                 {
                     b.HasOne("Slush.Domain.Entities.User", "User")
@@ -783,39 +634,6 @@ namespace Slush.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.UserLoginHistory", b =>
-                {
-                    b.HasOne("Slush.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserPost", b =>
-                {
-                    b.HasOne("Slush.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserScreenshot", b =>
-                {
-                    b.HasOne("Slush.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Slush.Domain.Entities.UserVideo", b =>
                 {
                     b.HasOne("Slush.Domain.Entities.User", "User")
                         .WithMany()

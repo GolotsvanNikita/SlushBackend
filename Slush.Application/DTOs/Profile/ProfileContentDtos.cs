@@ -32,3 +32,44 @@ public class ProfileCommentDto
     public string Text { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
 }
+
+public class ProfileGameDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+public class ProfilePostDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string AuthorUsername { get; set; } = string.Empty;
+    public string AuthorAvatarUrl { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+    public int LikesCount { get; set; }
+    public int CommentsCount { get; set; }
+}
+
+public class ProfileScreenshotDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+    public string GameTitle { get; set; } = string.Empty;
+    public string GameId { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}
+
+public class ProfileVideoDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string VideoUrl { get; set; } = string.Empty;
+    public string ThumbnailUrl { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string GameTitle { get; set; } = string.Empty;
+    public string GameId { get; set; } = string.Empty;
+    public string CreatedAt { get; set; } = string.Empty;
+}

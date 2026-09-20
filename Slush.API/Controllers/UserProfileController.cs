@@ -48,4 +48,32 @@ public class UserProfileController : ControllerBase
         var result = await _profileService.GetProfileGuidesAsync(username, page, pageSize);
         return Ok(result);
     }
+
+    [HttpGet("{username}/games")]
+    public async Task<ActionResult<PagedResultDto<ProfileGameDto>>> GetGames(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _profileService.GetProfileGamesAsync(username, page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("{username}/posts")]
+    public async Task<ActionResult<PagedResultDto<ProfilePostDto>>> GetPosts(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _profileService.GetProfilePostsAsync(username, page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("{username}/screenshots")]
+    public async Task<ActionResult<PagedResultDto<ProfileScreenshotDto>>> GetScreenshots(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _profileService.GetProfileScreenshotsAsync(username, page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("{username}/videos")]
+    public async Task<ActionResult<PagedResultDto<ProfileVideoDto>>> GetVideos(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        var result = await _profileService.GetProfileVideosAsync(username, page, pageSize);
+        return Ok(result);
+    }
 }
