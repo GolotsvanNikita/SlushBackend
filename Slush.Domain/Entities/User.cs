@@ -1,7 +1,4 @@
 ﻿using Slush.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Slush.Domain.Entities
 {
@@ -26,7 +23,7 @@ namespace Slush.Domain.Entities
         public int CurrentXp { get; set; } = 0;
 
         public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();
-        public ICollection<ProfileComment> ProfileComments { get; set; } = new List<ProfileComment>(); // Комментарии на ЕГО стене
+        public ICollection<ProfileComment> ProfileComments { get; set; } = new List<ProfileComment>();
         public ICollection<UserGuide> Guides { get; set; } = new List<UserGuide>();
     }
 }

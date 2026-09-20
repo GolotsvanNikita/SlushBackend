@@ -26,13 +26,32 @@ public class GameCatalogController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<PagedResultDto<UnifiedGameDto>>> GetGamesList(
-        [FromQuery] string? query = null,
-        [FromQuery] GameSource? source = null,
-        [FromQuery] int? minDiscount = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 12)
+            [FromQuery] string? query = null,
+            [FromQuery] GameSource? source = null,
+            [FromQuery] int? minDiscount = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 12)
     {
         var result = await _cheapSharkService.SearchAsync(query ?? string.Empty, source, minDiscount, page, pageSize);
+
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var steamResult = await _steamService.SearchSteamGamesAsync(query, 1, 15);
+
+            var combinedItems = result.Items
+                .Concat(steamResult.Items)
+                .GroupBy(g => g.Id)
+                .Select(g => g.First())
+                .Take(pageSize)
+                .ToList();
+
+            result = new PagedResultDto<UnifiedGameDto>(
+                combinedItems,
+                Math.Max(result.TotalCount, combinedItems.Count),
+                page,
+                pageSize);
+        }
+
         return Ok(result);
     }
 

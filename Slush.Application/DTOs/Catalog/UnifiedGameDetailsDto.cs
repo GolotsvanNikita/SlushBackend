@@ -26,6 +26,7 @@ public class UnifiedGameDetailsDto
 
     public bool IsInWishlist { get; set; }
     public bool IsInCart { get; set; }
+    public PcRequirementsDto PcRequirements { get; set; } = new();
 }
 
 public class GameReviewDto
@@ -64,4 +65,10 @@ public class BundleDto
     public string Description { get; set; } = string.Empty;
     public string Image { get; set; } = string.Empty;
     public decimal Price { get; set; }
+}
+
+public class PcRequirementsDto
+{
+    public string Minimum { get; set; } = string.Empty;
+    public string Recommended { get; set; } = string.Empty;
 }
