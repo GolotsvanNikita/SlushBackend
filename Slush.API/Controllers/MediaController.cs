@@ -139,7 +139,10 @@ public class MediaController : ControllerBase
     }
 
     [HttpPost("screenshot")]
-    public async Task<IActionResult> UploadScreenshot(IFormFile file)
+    public async Task<IActionResult> UploadScreenshot(
+        IFormFile file,
+        [FromForm] string gameId,
+        [FromForm] string gameTitle)
     {
         if (!TryGetCurrentUserId(out Guid userId))
             return Unauthorized();
@@ -147,11 +150,38 @@ public class MediaController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Screenshot file is required." });
 
+        if (string.IsNullOrWhiteSpace(gameId))
+            return BadRequest(new { message = "Game ID is required." });
+
+        if (string.IsNullOrWhiteSpace(gameTitle))
+            return BadRequest(new { message = "Game title is required." });
+
         var screenshotUrl = await _mediaService.UploadScreenshotAsync(file);
 
         if (screenshotUrl == null)
             return BadRequest(new { message = "Failed to upload screenshot." });
 
-        return Ok(new { url = screenshotUrl });
+        var screenshot = new UserScreenshot
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            GameId = gameId,
+            GameTitle = gameTitle,
+            ImageUrl = screenshotUrl,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.Repository<UserScreenshot>().AddAsync(screenshot);
+        await _uow.SaveChangesAsync();
+
+        return Ok(new
+        {
+            id = screenshot.Id,
+            userId = screenshot.UserId,
+            gameId = screenshot.GameId,
+            gameTitle = screenshot.GameTitle,
+            imageUrl = screenshot.ImageUrl,
+            createdAt = screenshot.CreatedAt
+        });
     }
 }

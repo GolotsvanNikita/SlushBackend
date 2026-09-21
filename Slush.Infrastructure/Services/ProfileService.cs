@@ -28,6 +28,14 @@ public class ProfileService : IProfileService
         var reviewsCount = await _uow.Repository<GameReview>().AsQueryable()
             .CountAsync(r => r.UserId == user.Id);
 
+        var screenshotsCount = await _uow.Repository<UserScreenshot>()
+            .AsQueryable()
+            .CountAsync(s => s.UserId == user.Id);
+
+        var videosCount = await _uow.Repository<UserVideo>()
+            .AsQueryable()
+            .CountAsync(v => v.UserId == user.Id);
+
         var wishlistCount = await _uow.Repository<WishlistItem>().AsQueryable()
             .CountAsync(w => w.UserId == user.Id);
 
@@ -70,8 +78,8 @@ public class ProfileService : IProfileService
                 Guides = user.Guides.Count,
                 Friends = friendsCount,
                 Discussions = 0,
-                Screenshots = 0,
-                Videos = 0
+                Screenshots = screenshotsCount,
+                Videos = videosCount
             },
 
             Badges = user.UserBadges.Select(ub => new BadgeDto
