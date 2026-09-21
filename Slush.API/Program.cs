@@ -75,6 +75,8 @@ builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IMediaUploadService, MediaUploadService>();
 builder.Services.AddScoped<IProfileService, Slush.Infrastructure.Services.ProfileService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IWishlistService, WishlistService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
