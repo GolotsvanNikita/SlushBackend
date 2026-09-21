@@ -72,4 +72,17 @@ public class MediaController : ControllerBase
 
         return Ok(new { url = videoUrl });
     }
+
+    [HttpPost("screenshot")]
+    public async Task<IActionResult> UploadScreenshot(IFormFile file)
+    {
+        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+
+        var screenshotUrl = await _mediaService.UploadScreenshotAsync(file);
+        if (screenshotUrl == null) return BadRequest(new { message = "Failed to upload screenshot." });
+
+        return Ok(new { url = screenshotUrl });
+    }
 }

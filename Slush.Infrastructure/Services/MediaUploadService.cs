@@ -69,4 +69,20 @@ public class MediaUploadService : IMediaUploadService
         var uploadResult = await _cloudinary.UploadAsync(uploadParams);
         return uploadResult.SecureUrl?.ToString();
     }
+
+    public async Task<string?> UploadScreenshotAsync(IFormFile file)
+    {
+        if (file.Length == 0) return null;
+
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new ImageUploadParams
+        {
+            File = new FileDescription(file.FileName, stream),
+            Transformation = new Transformation().Width(1920).Height(1080).Crop("limit"),
+            Folder = "slush/screenshots"
+        };
+
+        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+        return uploadResult.SecureUrl?.ToString();
+    }
 }
