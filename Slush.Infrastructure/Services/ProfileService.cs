@@ -51,7 +51,9 @@ public class ProfileService : IProfileService
         {
             Id = user.Id.ToString(),
             Username = user.Username,
-            Status = "online",
+            IsOnline = user.LastSeenAt.HasValue && user.LastSeenAt.Value >= DateTime.UtcNow.AddMinutes(-2),
+            LastSeenAt = user.LastSeenAt,
+            Status = user.LastSeenAt.HasValue && user.LastSeenAt.Value >= DateTime.UtcNow.AddMinutes(-2) ? "online" : "offline",
             Bio = string.IsNullOrWhiteSpace(user.Bio) ? "No bio yet." : user.Bio,
             AvatarUrl = user.AvatarUrl,
             CoverUrl = user.CoverUrl,

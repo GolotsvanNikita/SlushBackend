@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Slush.Application.DTOs.Common;
 using Slush.Application.DTOs.Profile;
 using Slush.Application.Interfaces;
+using Slush.Domain.Entities;
+using System.Security.Claims;
 namespace Slush.API.Controllers;
 
 [ApiController]
@@ -9,10 +12,50 @@ namespace Slush.API.Controllers;
 public class UserProfileController : ControllerBase
 {
     private readonly IProfileService _profileService;
+    private readonly IUnitOfWork _uow;
 
-    public UserProfileController(IProfileService profileService)
+    public UserProfileController(IProfileService profileService, IUnitOfWork uow)
     {
         _profileService = profileService;
+        _uow = uow;
+    }
+
+    [HttpPut("settings")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto request)
+    {
+        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(userIdString, out Guid userId))
+            return Unauthorized();
+
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
+        if (user == null)
+            return NotFound(new { message = "User not found." });
+
+        if (!string.IsNullOrWhiteSpace(request.Username) && request.Username != user.Username)
+        {
+            var isUsernameTaken = userRepo.AsQueryable().Any(u => u.Username.ToLower() == request.Username.ToLower());
+            if (isUsernameTaken)
+            {
+                return BadRequest(new { message = "This username is already taken." });
+            }
+
+            user.Username = request.Username;
+        }
+
+        if (request.Bio != null)
+        {
+            user.Bio = request.Bio;
+        }
+
+        userRepo.Update(user);
+        await _uow.SaveChangesAsync();
+
+        return Ok(new { message = "Profile updated successfully.", username = user.Username, bio = user.Bio });
     }
 
     [HttpGet("{username}")]

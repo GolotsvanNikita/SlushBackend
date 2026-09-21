@@ -12,6 +12,7 @@ namespace Slush.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? LastLoginAt { get; set; }
+        public DateTime? LastSeenAt { get; set; }
 
         public UserRole Role { get; set; } = UserRole.User;
         public bool IsBanned { get; set; } = false;

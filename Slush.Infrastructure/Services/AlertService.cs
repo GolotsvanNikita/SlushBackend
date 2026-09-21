@@ -4,9 +4,6 @@ using Slush.Application.DTOs.Alerts;
 using Slush.Application.DTOs.Common;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Slush.Infrastructure.Services
 {

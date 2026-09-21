@@ -5,6 +5,8 @@ public class UserProfileDto
     public string Id { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
+    public bool IsOnline { get; set; }
+    public DateTime? LastSeenAt { get; set; }
     public string Bio { get; set; } = string.Empty;
     public string AvatarUrl { get; set; } = string.Empty;
     public string CoverUrl { get; set; } = string.Empty;

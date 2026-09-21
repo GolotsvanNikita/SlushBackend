@@ -23,7 +23,8 @@ public class MediaController : ControllerBase
     [HttpPost("avatar")]
     public async Task<IActionResult> UploadAvatar(IFormFile file)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
 
         var avatarUrl = await _mediaService.UploadAvatarAsync(file);
@@ -42,7 +43,8 @@ public class MediaController : ControllerBase
     [HttpPost("banner")]
     public async Task<IActionResult> UploadBanner(IFormFile file)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
 
         var bannerUrl = await _mediaService.UploadBannerAsync(file);
@@ -61,7 +63,8 @@ public class MediaController : ControllerBase
     [HttpPost("video")]
     public async Task<IActionResult> UploadVideo(IFormFile file)
     {
-        var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
 
         var videoUrl = await _mediaService.UploadVideoAsync(file);
