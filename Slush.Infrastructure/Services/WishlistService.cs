@@ -25,6 +25,8 @@ public class WishlistService : IWishlistService
                 Title = w.Title,
                 ImageUrl = w.ImageUrl,
                 Price = w.Price,
+                OldPrice = w.OldPrice,
+                DiscountPercent = w.DiscountPercent,
                 AddedAt = w.AddedAt
             })
             .ToListAsync();
@@ -45,7 +47,9 @@ public class WishlistService : IWishlistService
             GameId = request.GameId,
             Title = request.Title,
             ImageUrl = request.ImageUrl,
-            Price = request.Price
+            Price = request.Price,
+            OldPrice = request.OldPrice,
+            DiscountPercent = request.DiscountPercent
         };
 
         await repo.AddAsync(item);

@@ -25,6 +25,8 @@ public class CartService : ICartService
                 Title = c.Title,
                 ImageUrl = c.ImageUrl,
                 Price = c.Price,
+                OldPrice = c.OldPrice,
+                DiscountPercent = c.DiscountPercent,
                 AddedAt = c.AddedAt
             })
             .ToListAsync();
@@ -45,7 +47,9 @@ public class CartService : ICartService
             GameId = request.GameId,
             Title = request.Title,
             ImageUrl = request.ImageUrl,
-            Price = request.Price
+            Price = request.Price,
+            OldPrice = request.OldPrice,
+            DiscountPercent = request.DiscountPercent
         };
 
         await repo.AddAsync(item);
