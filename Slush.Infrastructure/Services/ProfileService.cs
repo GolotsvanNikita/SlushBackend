@@ -3,6 +3,7 @@ using Slush.Application.DTOs.Common;
 using Slush.Application.DTOs.Profile;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
+using Slush.Domain.Enums;
 
 namespace Slush.Infrastructure.Services;
 
@@ -20,7 +21,6 @@ public class ProfileService : IProfileService
         var user = await _uow.Repository<User>().AsQueryable()
             .Include(u => u.UserBadges)
                 .ThenInclude(ub => ub.Badge)
-            .Include(u => u.Guides)
             .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
 
         if (user == null) return null;
@@ -28,16 +28,15 @@ public class ProfileService : IProfileService
         var reviewsCount = await _uow.Repository<GameReview>().AsQueryable()
             .CountAsync(r => r.UserId == user.Id);
 
-        var screenshotsCount = await _uow.Repository<UserScreenshot>()
-            .AsQueryable()
-            .CountAsync(s => s.UserId == user.Id);
-
-        var videosCount = await _uow.Repository<UserVideo>()
-            .AsQueryable()
-            .CountAsync(v => v.UserId == user.Id);
-
         var wishlistCount = await _uow.Repository<WishlistItem>().AsQueryable()
             .CountAsync(w => w.UserId == user.Id);
+
+        var communityRepo = _uow.Repository<CommunityPost>().AsQueryable().Where(p => p.UserId == user.Id);
+
+        var discussionsCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Discussion);
+        var screenshotsCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Screenshot);
+        var videosCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Video);
+        var guidesCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Guide);
 
         var friendsQuery = _uow.Repository<Friendship>().AsQueryable()
             .Where(f => (f.UserId == user.Id || f.FriendId == user.Id) && f.Status == FriendshipStatus.Accepted);
@@ -75,9 +74,9 @@ public class ProfileService : IProfileService
                 Games = 0,
                 Wishlist = wishlistCount,
                 Reviews = reviewsCount,
-                Guides = user.Guides.Count,
+                Guides = guidesCount,
                 Friends = friendsCount,
-                Discussions = 0,
+                Discussions = discussionsCount,
                 Screenshots = screenshotsCount,
                 Videos = videosCount
             },
@@ -149,32 +148,6 @@ public class ProfileService : IProfileService
         return new PagedResultDto<ProfileReviewDto>(reviews, totalCount, page, pageSize);
     }
 
-    public async Task<PagedResultDto<ProfileGuideDto>> GetProfileGuidesAsync(string username, int page, int pageSize)
-    {
-        var query = _uow.Repository<UserGuide>().AsQueryable()
-            .Include(g => g.User)
-            .Where(g => g.User.Username.ToLower() == username.ToLower())
-            .OrderByDescending(g => g.CreatedAt);
-
-        var totalCount = await query.CountAsync();
-
-        var guides = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(g => new ProfileGuideDto
-            {
-                GameTitle = $"Game ID: {g.GameId}",
-                GuideTitle = g.Title,
-                TextSnippet = g.Content.Length > 150 ? g.Content.Substring(0, 150) + "..." : g.Content,
-                LikesCount = g.LikesCount,
-                CommentsCount = 0,
-                CreatedAt = g.CreatedAt.ToString("dd.MM.yyyy")
-            })
-            .ToListAsync();
-
-        return new PagedResultDto<ProfileGuideDto>(guides, totalCount, page, pageSize);
-    }
-
     public async Task<PagedResultDto<ProfileGameDto>> GetProfileGamesAsync(string username, int page, int pageSize)
     {
         var query = _uow.Repository<UserGame>().AsQueryable()
@@ -194,11 +167,12 @@ public class ProfileService : IProfileService
         return new PagedResultDto<ProfileGameDto>(items, totalCount, page, pageSize);
     }
 
+
     public async Task<PagedResultDto<ProfilePostDto>> GetProfilePostsAsync(string username, int page, int pageSize)
     {
-        var query = _uow.Repository<UserPost>().AsQueryable()
+        var query = _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
-            .Where(p => p.User.Username.ToLower() == username.ToLower())
+            .Where(p => p.User.Username.ToLower() == username.ToLower() && p.PostType == CommunityPostType.Discussion)
             .OrderByDescending(p => p.CreatedAt);
 
         var totalCount = await query.CountAsync();
@@ -206,9 +180,9 @@ public class ProfileService : IProfileService
             .Select(p => new ProfilePostDto
             {
                 Id = p.Id.ToString(),
-                Title = p.Title,
-                Text = p.Text,
-                ImageUrl = p.ImageUrl,
+                Title = p.Title ?? string.Empty,
+                Text = p.Content ?? string.Empty,
+                ImageUrl = p.MediaUrl ?? string.Empty,
                 AuthorUsername = p.User.Username,
                 AuthorAvatarUrl = p.User.AvatarUrl,
                 CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd"),
@@ -221,19 +195,19 @@ public class ProfileService : IProfileService
 
     public async Task<PagedResultDto<ProfileScreenshotDto>> GetProfileScreenshotsAsync(string username, int page, int pageSize)
     {
-        var query = _uow.Repository<UserScreenshot>().AsQueryable()
-            .Where(s => s.User.Username.ToLower() == username.ToLower())
-            .OrderByDescending(s => s.CreatedAt);
+        var query = _uow.Repository<CommunityPost>().AsQueryable()
+            .Where(p => p.User.Username.ToLower() == username.ToLower() && p.PostType == CommunityPostType.Screenshot)
+            .OrderByDescending(p => p.CreatedAt);
 
         var totalCount = await query.CountAsync();
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(s => new ProfileScreenshotDto
+            .Select(p => new ProfileScreenshotDto
             {
-                Id = s.Id.ToString(),
-                ImageUrl = s.ImageUrl,
-                GameTitle = s.GameTitle,
-                GameId = s.GameId,
-                CreatedAt = s.CreatedAt.ToString("yyyy-MM-dd")
+                Id = p.Id.ToString(),
+                ImageUrl = p.MediaUrl ?? string.Empty,
+                GameTitle = $"Game ID: {p.GameId}", // Можно тянуть название из кэша, если нужно
+                GameId = p.GameId,
+                CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd")
             }).ToListAsync();
 
         return new PagedResultDto<ProfileScreenshotDto>(items, totalCount, page, pageSize);
@@ -241,23 +215,44 @@ public class ProfileService : IProfileService
 
     public async Task<PagedResultDto<ProfileVideoDto>> GetProfileVideosAsync(string username, int page, int pageSize)
     {
-        var query = _uow.Repository<UserVideo>().AsQueryable()
-            .Where(v => v.User.Username.ToLower() == username.ToLower())
-            .OrderByDescending(v => v.CreatedAt);
+        var query = _uow.Repository<CommunityPost>().AsQueryable()
+            .Where(p => p.User.Username.ToLower() == username.ToLower() && p.PostType == CommunityPostType.Video)
+            .OrderByDescending(p => p.CreatedAt);
 
         var totalCount = await query.CountAsync();
         var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
-            .Select(v => new ProfileVideoDto
+            .Select(p => new ProfileVideoDto
             {
-                Id = v.Id.ToString(),
-                VideoUrl = v.VideoUrl,
-                ThumbnailUrl = v.ThumbnailUrl,
-                Title = v.Title,
-                GameTitle = v.GameTitle,
-                GameId = v.GameId,
-                CreatedAt = v.CreatedAt.ToString("yyyy-MM-dd")
+                Id = p.Id.ToString(),
+                VideoUrl = p.MediaUrl ?? string.Empty,
+                ThumbnailUrl = string.Empty,
+                Title = p.Content ?? "Video",
+                GameTitle = $"Game ID: {p.GameId}",
+                GameId = p.GameId,
+                CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd")
             }).ToListAsync();
 
         return new PagedResultDto<ProfileVideoDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<PagedResultDto<ProfileGuideDto>> GetProfileGuidesAsync(string username, int page, int pageSize)
+    {
+        var query = _uow.Repository<CommunityPost>().AsQueryable()
+            .Where(p => p.User.Username.ToLower() == username.ToLower() && p.PostType == CommunityPostType.Guide)
+            .OrderByDescending(p => p.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(p => new ProfileGuideDto
+            {
+                GameTitle = $"Game ID: {p.GameId}",
+                GuideTitle = p.Title ?? string.Empty,
+                TextSnippet = !string.IsNullOrEmpty(p.ShortDescription) ? p.ShortDescription : (p.Content != null && p.Content.Length > 150 ? p.Content.Substring(0, 150) + "..." : p.Content ?? string.Empty),
+                LikesCount = p.LikesCount,
+                CommentsCount = p.CommentsCount,
+                CreatedAt = p.CreatedAt.ToString("dd.MM.yyyy")
+            }).ToListAsync();
+
+        return new PagedResultDto<ProfileGuideDto>(items, totalCount, page, pageSize);
     }
 }

@@ -84,104 +84,34 @@ public class MediaController : ControllerBase
     }
 
     [HttpPost("video")]
-    public async Task<IActionResult> UploadVideo(
-        IFormFile file,
-        [FromForm] string gameId,
-        [FromForm] string gameTitle,
-        [FromForm] string title)
+    public async Task<IActionResult> UploadVideo(IFormFile file)
     {
-        if (!TryGetCurrentUserId(out Guid userId))
-            return Unauthorized();
+        if (!TryGetCurrentUserId(out _)) return Unauthorized();
 
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Video file is required." });
 
-        if (string.IsNullOrWhiteSpace(gameId))
-            return BadRequest(new { message = "Game ID is required." });
-
-        if (string.IsNullOrWhiteSpace(gameTitle))
-            return BadRequest(new { message = "Game title is required." });
-
-        if (string.IsNullOrWhiteSpace(title))
-            return BadRequest(new { message = "Video title is required." });
-
         var videoUrl = await _mediaService.UploadVideoAsync(file);
 
         if (videoUrl == null)
-            return BadRequest(new { message = "Failed to upload video." });
+            return BadRequest(new { message = "Failed to upload video to cloud." });
 
-        var video = new UserVideo
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            GameId = gameId,
-            GameTitle = gameTitle,
-            Title = title,
-            VideoUrl = videoUrl,
-            ThumbnailUrl = string.Empty,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await _uow.Repository<UserVideo>().AddAsync(video);
-        await _uow.SaveChangesAsync();
-
-        return Ok(new
-        {
-            id = video.Id,
-            userId = video.UserId,
-            gameId = video.GameId,
-            gameTitle = video.GameTitle,
-            title = video.Title,
-            videoUrl = video.VideoUrl,
-            thumbnailUrl = video.ThumbnailUrl,
-            createdAt = video.CreatedAt
-        });
+        return Ok(new { url = videoUrl });
     }
 
     [HttpPost("screenshot")]
-    public async Task<IActionResult> UploadScreenshot(
-        IFormFile file,
-        [FromForm] string gameId,
-        [FromForm] string gameTitle)
+    public async Task<IActionResult> UploadScreenshot(IFormFile file)
     {
-        if (!TryGetCurrentUserId(out Guid userId))
-            return Unauthorized();
+        if (!TryGetCurrentUserId(out _)) return Unauthorized();
 
         if (file == null || file.Length == 0)
             return BadRequest(new { message = "Screenshot file is required." });
 
-        if (string.IsNullOrWhiteSpace(gameId))
-            return BadRequest(new { message = "Game ID is required." });
-
-        if (string.IsNullOrWhiteSpace(gameTitle))
-            return BadRequest(new { message = "Game title is required." });
-
         var screenshotUrl = await _mediaService.UploadScreenshotAsync(file);
 
         if (screenshotUrl == null)
-            return BadRequest(new { message = "Failed to upload screenshot." });
+            return BadRequest(new { message = "Failed to upload screenshot to cloud." });
 
-        var screenshot = new UserScreenshot
-        {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            GameId = gameId,
-            GameTitle = gameTitle,
-            ImageUrl = screenshotUrl,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        await _uow.Repository<UserScreenshot>().AddAsync(screenshot);
-        await _uow.SaveChangesAsync();
-
-        return Ok(new
-        {
-            id = screenshot.Id,
-            userId = screenshot.UserId,
-            gameId = screenshot.GameId,
-            gameTitle = screenshot.GameTitle,
-            imageUrl = screenshot.ImageUrl,
-            createdAt = screenshot.CreatedAt
-        });
+        return Ok(new { url = screenshotUrl });
     }
 }

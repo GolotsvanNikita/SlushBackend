@@ -22,11 +22,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserBadge> UserBadges { get; set; }
     public DbSet<Friendship> Friendships { get; set; }
     public DbSet<ProfileComment> ProfileComments { get; set; }
-    public DbSet<UserGuide> UserGuides { get; set; }
     public DbSet<UserGame> UserGames { get; set; }
-    public DbSet<UserPost> UserPosts { get; set; }
-    public DbSet<UserScreenshot> UserScreenshots { get; set; }
-    public DbSet<UserVideo> UserVideos { get; set; }
+    public DbSet<CommunityPost> CommunityPosts { get; set; }
+    public DbSet<PostLike> PostLikes { get; set; }
+    public DbSet<PostComment> PostComments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +63,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(pc => pc.Author)
             .WithMany()
             .HasForeignKey(pc => pc.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PostLike>()
+            .HasOne(pl => pl.User)
+            .WithMany()
+            .HasForeignKey(pl => pl.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PostComment>()
+            .HasOne(pc => pc.User)
+            .WithMany()
+            .HasForeignKey(pc => pc.UserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

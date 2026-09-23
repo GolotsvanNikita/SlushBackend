@@ -25,6 +25,5 @@ namespace Slush.Domain.Entities
 
         public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();
         public ICollection<ProfileComment> ProfileComments { get; set; } = new List<ProfileComment>();
-        public ICollection<UserGuide> Guides { get; set; } = new List<UserGuide>();
     }
 }
