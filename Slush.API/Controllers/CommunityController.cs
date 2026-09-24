@@ -170,7 +170,16 @@ public class CommunityController : ControllerBase
     [HttpGet("game/{gameId}/counts")]
     public async Task<IActionResult> GetTabCounts(string gameId)
     {
-        var result = await _communityService.GetGameTabCountsAsync(gameId);
+        var currentUserId = GetUserId();
+
+        var userIdOrNull = currentUserId == Guid.Empty
+            ? (Guid?)null
+            : currentUserId;
+
+        var result = await _communityService.GetGameTabCountsAsync(
+            gameId,
+            userIdOrNull);
+
         return Ok(result);
     }
 
