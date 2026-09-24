@@ -26,7 +26,10 @@ public class CommunityController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
-        var result = await _communityService.GetGamePostsAsync(gameId, type, sort, page, pageSize);
+        var currentUserId = GetUserId();
+        var userIdOrNull = currentUserId == Guid.Empty ? (Guid?)null : currentUserId;
+
+        var result = await _communityService.GetGamePostsAsync(gameId, type, sort, page, pageSize, userIdOrNull);
         return Ok(result);
     }
 
@@ -169,5 +172,16 @@ public class CommunityController : ControllerBase
     {
         var result = await _communityService.GetGameTabCountsAsync(gameId);
         return Ok(result);
+    }
+
+    [HttpPost("game/{gameId}/subscribe")]
+    [Authorize]
+    public async Task<IActionResult> ToggleSubscribe(string gameId)
+    {
+        var userId = GetUserId();
+        if (userId == Guid.Empty) return Unauthorized();
+
+        await _communityService.ToggleSubscribeAsync(userId, gameId);
+        return Ok(new { message = "Subscription toggled successfully." });
     }
 }

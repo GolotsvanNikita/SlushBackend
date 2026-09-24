@@ -11,7 +11,8 @@ public interface ICommunityService
         CommunityPostType? postType,
         PostSortOption sortOption,
         int page,
-        int pageSize);
+        int pageSize,
+        Guid? currentUserId = null);
 
     Task<CommunityPostDto> CreatePostAsync(Guid userId, CreateCommunityPostDto request);
     Task ToggleLikeAsync(Guid userId, Guid postId);
@@ -22,5 +23,6 @@ public interface ICommunityService
 
     Task UpdateCommentAsync(Guid userId, Guid commentId, UpdateCommentDto request);
     Task DeleteCommentAsync(Guid userId, Guid commentId);
-    Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId);
+    Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId, Guid? currentUserId = null);
+    Task ToggleSubscribeAsync(Guid userId, string gameId);
 }

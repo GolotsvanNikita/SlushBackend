@@ -21,7 +21,8 @@ public class CommunityService : ICommunityService
         CommunityPostType? postType,
         PostSortOption sortOption,
         int page,
-        int pageSize)
+        int pageSize,
+        Guid? currentUserId = null)
     {
         var query = _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
@@ -58,6 +59,7 @@ public class CommunityService : ICommunityService
                 MediaUrl = p.MediaUrl,
                 LikesCount = p.LikesCount,
                 CommentsCount = p.CommentsCount,
+                IsLiked = currentUserId.HasValue && p.Likes.Any(l => l.UserId == currentUserId.Value),
                 CreatedAt = p.CreatedAt.ToString("dd.MM.yyyy")
             })
             .ToListAsync();
@@ -257,7 +259,7 @@ public class CommunityService : ICommunityService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId)
+    public async Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId, Guid? currentUserId = null) // <-- Добавили параметр
     {
         var counts = await _uow.Repository<CommunityPost>().AsQueryable()
             .Where(p => p.GameId == gameId)
@@ -281,6 +283,29 @@ public class CommunityService : ICommunityService
             }
         }
 
+        var subRepo = _uow.Repository<GameSubscription>().AsQueryable().Where(s => s.GameId == gameId);
+
+        result.SubscribersCount = await subRepo.CountAsync();
+        result.IsSubscribed = currentUserId.HasValue && await subRepo.AnyAsync(s => s.UserId == currentUserId.Value);
+
         return result;
+    }
+
+    public async Task ToggleSubscribeAsync(Guid userId, string gameId)
+    {
+        var repo = _uow.Repository<GameSubscription>();
+        var existingSub = await repo.AsQueryable()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.GameId == gameId);
+
+        if (existingSub == null)
+        {
+            await repo.AddAsync(new GameSubscription { UserId = userId, GameId = gameId });
+        }
+        else
+        {
+            repo.Remove(existingSub);
+        }
+
+        await _uow.SaveChangesAsync();
     }
 }

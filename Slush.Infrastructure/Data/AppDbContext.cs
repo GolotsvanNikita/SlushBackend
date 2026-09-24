@@ -26,6 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CommunityPost> CommunityPosts { get; set; }
     public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<PostComment> PostComments { get; set; }
+    public DbSet<GameSubscription> GameSubscriptions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

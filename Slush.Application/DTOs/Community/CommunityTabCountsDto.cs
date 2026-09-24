@@ -8,4 +8,6 @@ public class CommunityTabCountsDto
     public int Videos { get; set; }
     public int Guides { get; set; }
     public int News { get; set; }
+    public bool IsSubscribed { get; set; }
+    public int SubscribersCount { get; set; }
 }

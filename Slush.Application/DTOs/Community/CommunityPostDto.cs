@@ -8,6 +8,7 @@ public class CommunityPostDto
     public string AuthorAvatarUrl { get; set; } = string.Empty;
 
     public string PostType { get; set; } = string.Empty;
+    public bool IsLiked { get; set; }
 
     public string? Title { get; set; }
     public string? Content { get; set; }
