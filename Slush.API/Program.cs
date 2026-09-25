@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text.Json.Serialization;
 using Microsoft.OpenApi;
 using Slush.API.Hubs;
 using Slush.Application.Interfaces;
@@ -66,7 +67,14 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.AddControllers();
+builder.Services
+    .AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter()
+        );
+    });
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<PresenceStateService>();
 builder.Services.AddScoped<IGeoLocationService, GeoLocationService>();
