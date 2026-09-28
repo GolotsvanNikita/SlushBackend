@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Slush.Application.DTOs.Auth;
+using Slush.Application.DTOs.Profile;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
 using Slush.Domain.Enums;
@@ -267,6 +268,84 @@ public class AuthService : IAuthService
         await _uow.SaveChangesAsync();
 
         return new AuthResponseDto(newAccessToken, newRefreshToken);
+    }
+
+    public async Task ChangePasswordAsync(Guid userId, ChangePasswordDto request)
+    {
+        if (request.NewPassword != request.ConfirmPassword)
+            throw new Exception("New password must match confirm password.");
+
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
+        if (user == null) throw new Exception("User not found.");
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            throw new Exception("Invalid current password.");
+
+        var historyRepo = _uow.Repository<UserPasswordHistory>();
+        var recentPasswords = await historyRepo.AsQueryable()
+            .Where(h => h.UserId == userId)
+            .OrderByDescending(h => h.CreatedAt)
+            .Take(5)
+            .ToListAsync();
+
+        if (BCrypt.Net.BCrypt.Verify(request.NewPassword, user.PasswordHash))
+            throw new Exception("Cannot use any of your last 5 passwords.");
+
+        foreach (var history in recentPasswords)
+        {
+            if (BCrypt.Net.BCrypt.Verify(request.NewPassword, history.PasswordHash))
+                throw new Exception("Cannot use any of your last 5 passwords.");
+        }
+
+        await historyRepo.AddAsync(new UserPasswordHistory
+        {
+            UserId = userId,
+            PasswordHash = user.PasswordHash,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        userRepo.Update(user);
+
+        await _uow.SaveChangesAsync();
+    }
+
+    public async Task DeleteAccountAsync(Guid userId, DeleteAccountDto request)
+    {
+        if (request.Password != request.ConfirmPassword)
+            throw new Exception("Passwords do not match.");
+
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
+        if (user == null) throw new Exception("User not found.");
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            throw new Exception("Invalid password.");
+
+        user.IsDeleted = true;
+        user.Username = $"DeletedUser_{Guid.NewGuid().ToString().Substring(0, 8)}";
+        user.Email = $"deleted_{Guid.NewGuid()}@slush.local";
+        user.Bio = string.Empty;
+        user.AvatarUrl = string.Empty;
+        user.CoverUrl = string.Empty;
+
+        userRepo.Update(user);
+
+        var tokenRepo = _uow.Repository<RefreshToken>();
+        var activeTokens = await tokenRepo.AsQueryable()
+            .Where(rt => rt.UserId == userId && rt.Revoked == null)
+            .ToListAsync();
+
+        foreach (var token in activeTokens)
+        {
+            token.Revoked = DateTime.UtcNow;
+            tokenRepo.Update(token);
+        }
+
+        await _uow.SaveChangesAsync();
     }
 
     private string GenerateRefreshTokenString()

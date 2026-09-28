@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Slush.Application.DTOs.Auth;
+using Slush.Application.DTOs.Profile;
 using Slush.Application.Interfaces;
+using System.Security.Claims;
 
 namespace Slush.API.Controllers
 {
@@ -160,6 +163,55 @@ namespace Slush.API.Controllers
                 {
                     message = ex.Message
                 });
+            }
+        }
+
+        private Guid GetUserId()
+        {
+            var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return Guid.TryParse(userIdString, out Guid userId) ? userId : Guid.Empty;
+        }
+
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto request)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+
+            try
+            {
+                await _authService.ChangePasswordAsync(userId, request);
+                return Ok(new { message = "Password changed successfully." });
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "Invalid current password.")
+                    return Unauthorized(new { message = ex.Message });
+
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpDelete("account")]
+        [Authorize]
+        public async Task<IActionResult> DeleteAccount([FromBody] DeleteAccountDto request)
+        {
+            var userId = GetUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+
+            try
+            {
+                await _authService.DeleteAccountAsync(userId, request);
+                return Ok(new { message = "Account successfully deleted." });
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "Invalid password.")
+                    return Unauthorized(new { message = ex.Message });
+
+                return BadRequest(new { message = ex.Message });
             }
         }
 

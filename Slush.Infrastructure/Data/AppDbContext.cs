@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Org.BouncyCastle.Asn1.Mozilla;
 using Slush.Domain.Entities;
 
 namespace Slush.Infrastructure.Data;
@@ -27,6 +28,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PostLike> PostLikes { get; set; }
     public DbSet<PostComment> PostComments { get; set; }
     public DbSet<GameSubscription> GameSubscriptions { get; set; }
+    public DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
+    public DbSet<WalletTransaction> WalletTransactions { get; set; }
+    public DbSet<UserPasswordHistory> UserPasswordHistories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

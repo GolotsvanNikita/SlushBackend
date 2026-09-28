@@ -23,7 +23,15 @@ namespace Slush.Domain.Entities
         public int Level { get; set; } = 1;
         public int CurrentXp { get; set; } = 0;
 
-        public ICollection<UserBadge> UserBadges { get; set; } = new List<UserBadge>();
-        public ICollection<ProfileComment> ProfileComments { get; set; } = new List<ProfileComment>();
+        public string Language { get; set; } = "uk";
+        public decimal Balance { get; set; } = 0m;
+        public bool IsDeleted { get; set; } = false; 
+
+        public UserNotificationSettings NotificationSettings { get; set; } = null!;
+        public ICollection<WalletTransaction> WalletTransactions { get; set; } = [];
+        public ICollection<UserPasswordHistory> PasswordHistories { get; set; } = [];
+
+        public ICollection<UserBadge> UserBadges { get; set; } = [];
+        public ICollection<ProfileComment> ProfileComments { get; set; } = [];
     }
 }
