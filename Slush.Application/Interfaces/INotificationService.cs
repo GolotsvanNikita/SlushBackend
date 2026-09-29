@@ -10,5 +10,6 @@ namespace Slush.Application.Interfaces
     {
         Task UpdateConfigAsync(NotificationChannel channel, UpdateNotificationChannelRequestDto request);
         Task<UpdateNotificationChannelRequestDto> GetConfigAsync(NotificationChannel channel);
+        Task SendNotificationAsync(Guid userId, string message, string type);
     }
 }

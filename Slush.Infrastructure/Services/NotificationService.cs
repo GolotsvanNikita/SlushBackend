@@ -71,5 +71,11 @@ namespace Slush.Infrastructure.Services
                 decryptedData
             );
         }
+
+        public async Task SendNotificationAsync(Guid userId, string message, string type)
+        {
+            // Заглушка, чтобы FriendService мог успешно вызывать этот метод без падений
+            await Task.CompletedTask;
+        }
     }
 }

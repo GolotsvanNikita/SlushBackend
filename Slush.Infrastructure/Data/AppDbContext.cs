@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Org.BouncyCastle.Asn1.Mozilla;
 using Slush.Domain.Entities;
+using System.Reflection.Emit;
 
 namespace Slush.Infrastructure.Data;
 
@@ -21,7 +22,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<GameReview> GameReviews { get; set; }
     public DbSet<Badge> Badges { get; set; }
     public DbSet<UserBadge> UserBadges { get; set; }
-    public DbSet<Friendship> Friendships { get; set; }
     public DbSet<ProfileComment> ProfileComments { get; set; }
     public DbSet<UserGame> UserGames { get; set; }
     public DbSet<CommunityPost> CommunityPosts { get; set; }
@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserNotificationSettings> UserNotificationSettings { get; set; }
     public DbSet<WalletTransaction> WalletTransactions { get; set; }
     public DbSet<UserPasswordHistory> UserPasswordHistories { get; set; }
+    public DbSet<FriendRequest> FriendRequests { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -45,18 +46,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .IsUnique();
         modelBuilder.Entity<UserBadge>()
             .HasKey(ub => new { ub.UserId, ub.BadgeId });
-
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.User)
-            .WithMany()
-            .HasForeignKey(f => f.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<Friendship>()
-            .HasOne(f => f.Friend)
-            .WithMany()
-            .HasForeignKey(f => f.FriendId)
-            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ProfileComment>()
             .HasOne(pc => pc.ProfileUser)
@@ -80,6 +69,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(pc => pc.User)
             .WithMany()
             .HasForeignKey(pc => pc.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<FriendRequest>()
+            .HasIndex(x => new { x.SenderId, x.ReceiverId, x.Status });
+
+        modelBuilder.Entity<FriendRequest>()
+            .HasOne(x => x.Sender)
+            .WithMany()
+            .HasForeignKey(x => x.SenderId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<FriendRequest>()
+            .HasOne(x => x.Receiver)
+            .WithMany()
+            .HasForeignKey(x => x.ReceiverId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

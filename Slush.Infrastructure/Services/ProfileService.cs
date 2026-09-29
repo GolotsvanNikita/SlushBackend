@@ -38,13 +38,15 @@ public class ProfileService : IProfileService
         var videosCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Video);
         var guidesCount = await communityRepo.CountAsync(p => p.PostType == CommunityPostType.Guide);
 
-        var friendsQuery = _uow.Repository<Friendship>().AsQueryable()
-            .Where(f => (f.UserId == user.Id || f.FriendId == user.Id) && f.Status == FriendshipStatus.Accepted);
+        var friendsQuery = _uow.Repository<FriendRequest>().AsQueryable()
+            .Include(r => r.Sender)
+            .Include(r => r.Receiver)
+            .Where(r => (r.SenderId == user.Id || r.ReceiverId == user.Id) && r.Status == FriendRequestStatus.Accepted);
 
         var friendsCount = await friendsQuery.CountAsync();
 
         var friendsList = await friendsQuery
-            .Select(f => f.UserId == user.Id ? f.Friend : f.User)
+            .Select(r => r.SenderId == user.Id ? r.Receiver : r.Sender)
             .Take(6)
             .Select(u => new FriendDto
             {
