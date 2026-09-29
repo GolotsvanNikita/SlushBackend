@@ -150,7 +150,7 @@ public class FriendService : IFriendService
 
         var totalCount = await query.CountAsync();
 
-        var friends = await query
+        var friendsList = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(r => r.SenderId == userId ? r.Receiver : r.Sender)
@@ -158,11 +158,18 @@ public class FriendService : IFriendService
             {
                 UserId = u.Id,
                 Username = u.Username,
-                AvatarUrl = u.AvatarUrl
+                AvatarUrl = u.AvatarUrl,
+                LastSeenAt = u.LastSeenAt
             })
             .ToListAsync();
 
-        return new PagedResultDto<FriendUserDto>(friends, totalCount, page, pageSize);
+        foreach (var friend in friendsList)
+        {
+            friend.IsOnline = friend.LastSeenAt.HasValue &&
+                              (DateTime.UtcNow - friend.LastSeenAt.Value) <= TimeSpan.FromMinutes(2);
+        }
+
+        return new PagedResultDto<FriendUserDto>(friendsList, totalCount, page, pageSize);
     }
 
     public async Task<PagedResultDto<FriendRequestDto>> GetIncomingRequestsAsync(Guid userId, int page, int pageSize)

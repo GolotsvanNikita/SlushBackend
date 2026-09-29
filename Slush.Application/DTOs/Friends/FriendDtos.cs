@@ -5,6 +5,9 @@ public class FriendUserDto
     public Guid UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public string AvatarUrl { get; set; } = string.Empty;
+
+    public DateTime? LastSeenAt { get; set; }
+    public bool IsOnline { get; set; }
 }
 
 public class FriendRequestDto

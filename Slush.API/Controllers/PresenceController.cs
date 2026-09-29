@@ -19,19 +19,28 @@ public class PresenceController : ControllerBase
     }
 
     [HttpPost("heartbeat")]
+    [Authorize]
     public async Task<IActionResult> Heartbeat()
     {
         var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+                           ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-        var user = await _uow.Repository<User>().GetByIdAsync(userId);
+        if (!Guid.TryParse(userIdString, out var userId))
+            return Unauthorized();
+
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+
         if (user == null) return NotFound();
 
         user.LastSeenAt = DateTime.UtcNow;
+        userRepo.Update(user);
         await _uow.SaveChangesAsync();
 
-
-        return Ok();
+        return Ok(new
+        {
+            isOnline = true,
+            lastSeenAt = user.LastSeenAt
+        });
     }
 }
