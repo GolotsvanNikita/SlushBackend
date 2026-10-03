@@ -32,6 +32,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WalletTransaction> WalletTransactions { get; set; }
     public DbSet<UserPasswordHistory> UserPasswordHistories { get; set; }
     public DbSet<FriendRequest> FriendRequests { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
