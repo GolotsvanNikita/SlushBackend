@@ -243,23 +243,38 @@ public class CommunityService : ICommunityService
         var commentRepo = _uow.Repository<PostComment>();
         var postRepo = _uow.Repository<CommunityPost>();
 
-        var comment = await commentRepo.GetByIdAsync(commentId);
+        var comment = await commentRepo.AsQueryable()
+            .Include(c => c.Replies)
+            .FirstOrDefaultAsync(c => c.Id == commentId);
 
         if (comment == null) throw new Exception("Comment not found.");
         if (comment.UserId != userId) throw new UnauthorizedAccessException("You can only delete your own comments.");
 
+        int totalCommentsToRemove = 1 + (comment.Replies?.Count ?? 0);
+
         var post = await postRepo.GetByIdAsync(comment.PostId);
         if (post != null)
         {
-            post.CommentsCount--;
+            post.CommentsCount -= totalCommentsToRemove;
+            if (post.CommentsCount < 0) post.CommentsCount = 0;
+
             postRepo.Update(post);
         }
 
+        if (comment.Replies != null && comment.Replies.Any())
+        {
+            foreach (var reply in comment.Replies.ToList())
+            {
+                commentRepo.Remove(reply);
+            }
+        }
+
         commentRepo.Remove(comment);
+
         await _uow.SaveChangesAsync();
     }
 
-    public async Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId, Guid? currentUserId = null) // <-- Добавили параметр
+    public async Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId, Guid? currentUserId = null)
     {
         var counts = await _uow.Repository<CommunityPost>().AsQueryable()
             .Where(p => p.GameId == gameId)

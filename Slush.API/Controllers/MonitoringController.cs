@@ -118,4 +118,44 @@ public class MonitoringController : ControllerBase
 
         return Ok(trends);
     }
+
+    [HttpPost("seed-mock-globe")]
+    [AllowAnonymous]
+    public IActionResult SeedMockGlobeUsers()
+    {
+        var random = new Random();
+
+        var locations = new[]
+        {
+        new { City = "Kyiv", Country = "Ukraine", Lat = 50.4501, Lng = 30.5234 },
+        new { City = "New York", Country = "USA", Lat = 40.7128, Lng = -74.0060 },
+        new { City = "Tokyo", Country = "Japan", Lat = 35.6895, Lng = 139.6917 },
+        new { City = "London", Country = "UK", Lat = 51.5074, Lng = -0.1278 },
+        new { City = "Sydney", Country = "Australia", Lat = -33.8688, Lng = 151.2093 },
+        new { City = "Paris", Country = "France", Lat = 48.8566, Lng = 2.3522 },
+        new { City = "Sao Paulo", Country = "Brazil", Lat = -23.5505, Lng = -46.6333 },
+        new { City = "Berlin", Country = "Germany", Lat = 52.5200, Lng = 13.4050 }
+    };
+
+        var games = new[] { "Cyberpunk 2077", "Dota 2", "Minecraft", "CS2", "" };
+
+        for (int i = 0; i < 20; i++)
+        {
+            var loc = locations[random.Next(locations.Length)];
+            var connectionId = $"fake_connection_{Guid.NewGuid()}";
+
+            var fakeSession = new Slush.Infrastructure.Services.UserSession
+            {
+                UserId = Guid.NewGuid().ToString(),
+                Nickname = $"Player_{random.Next(1000, 9999)}",
+                Status = "Online",
+                CurrentGame = games[random.Next(games.Length)],
+                Location = new Slush.Application.DTOs.Monitoring.GeoPoint(loc.Lat, loc.Lng, loc.City, loc.Country)
+            };
+
+            _state.ActiveConnections.TryAdd(connectionId, fakeSession);
+        }
+
+        return Ok(new { message = "20 test users have been added." });
+    }
 }
