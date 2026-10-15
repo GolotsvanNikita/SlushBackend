@@ -73,7 +73,7 @@ public class ProfileService : IProfileService
             Counters = new ProfileCountersDto
             {
                 Badges = user.UserBadges.Count,
-                Games = 0,
+                Games = await _uow.Repository<UserGame>().AsQueryable().CountAsync(g => g.UserId == user.Id),
                 Wishlist = wishlistCount,
                 Reviews = reviewsCount,
                 Guides = guidesCount,
@@ -207,7 +207,7 @@ public class ProfileService : IProfileService
             {
                 Id = p.Id.ToString(),
                 ImageUrl = p.MediaUrl ?? string.Empty,
-                GameTitle = $"Game ID: {p.GameId}", // Можно тянуть название из кэша, если нужно
+                GameTitle = $"Game ID: {p.GameId}",
                 GameId = p.GameId,
                 CreatedAt = p.CreatedAt.ToString("yyyy-MM-dd")
             }).ToListAsync();

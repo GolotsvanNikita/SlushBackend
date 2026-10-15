@@ -33,6 +33,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserPasswordHistory> UserPasswordHistories { get; set; }
     public DbSet<FriendRequest> FriendRequests { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<LibraryCollection> LibraryCollections { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,5 +87,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.ReceiverId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LibraryCollection>()
+            .HasOne(c => c.User)
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserGame>()
+            .HasOne(ug => ug.Collection)
+            .WithMany(c => c.Games)
+            .HasForeignKey(ug => ug.CollectionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<UserGame>()
+            .HasIndex(ug => new { ug.UserId, ug.GameId })
+            .IsUnique();
     }
 }

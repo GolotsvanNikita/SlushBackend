@@ -17,7 +17,7 @@ namespace Slush.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.12")
+                .HasAnnotation("ProductVersion", "10.0.13")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -354,6 +354,29 @@ namespace Slush.Infrastructure.Migrations
                     b.ToTable("GameSubscriptions");
                 });
 
+            modelBuilder.Entity("Slush.Domain.Entities.LibraryCollection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("LibraryCollections");
+                });
+
             modelBuilder.Entity("Slush.Domain.Entities.Notification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -623,16 +646,37 @@ namespace Slush.Infrastructure.Migrations
                     b.Property<DateTime>("AcquiredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("CollectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Developer")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DiskSize")
+                        .HasColumnType("text");
+
                     b.Property<string>("GameId")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("HeaderImage")
                         .HasColumnType("text");
 
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsFavorite")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("IsInstalled")
+                        .HasColumnType("boolean");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric");
+
+                    b.Property<string>("ReleaseDate")
+                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -643,7 +687,10 @@ namespace Slush.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("CollectionId");
+
+                    b.HasIndex("UserId", "GameId")
+                        .IsUnique();
 
                     b.ToTable("UserGames");
                 });
@@ -889,6 +936,17 @@ namespace Slush.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Slush.Domain.Entities.LibraryCollection", b =>
+                {
+                    b.HasOne("Slush.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Slush.Domain.Entities.Notification", b =>
                 {
                     b.HasOne("Slush.Domain.Entities.User", "User")
@@ -995,11 +1053,18 @@ namespace Slush.Infrastructure.Migrations
 
             modelBuilder.Entity("Slush.Domain.Entities.UserGame", b =>
                 {
+                    b.HasOne("Slush.Domain.Entities.LibraryCollection", "Collection")
+                        .WithMany("Games")
+                        .HasForeignKey("CollectionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Slush.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Collection");
 
                     b.Navigation("User");
                 });
@@ -1075,6 +1140,11 @@ namespace Slush.Infrastructure.Migrations
                     b.Navigation("Comments");
 
                     b.Navigation("Likes");
+                });
+
+            modelBuilder.Entity("Slush.Domain.Entities.LibraryCollection", b =>
+                {
+                    b.Navigation("Games");
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.PostComment", b =>
