@@ -146,4 +146,74 @@ public class LibraryController : ControllerBase
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
     }
+
+    [HttpGet("home")]
+    public async Task<IActionResult> GetLibraryHome()
+    {
+        var result = await _libraryService.GetLibraryHomeAsync(GetUserId());
+        return Ok(result);
+    }
+
+    [HttpGet("feed")]
+    public async Task<IActionResult> GetLibraryFeed(
+        [FromQuery] string source = "library",
+        [FromQuery] string type = "all",
+        [FromQuery] string sort = "newest",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var result = await _libraryService.GetLibraryFeedAsync(GetUserId(), source, type, sort, page, pageSize);
+        return Ok(result);
+    }
+
+    [HttpGet("game/{gameId}")]
+    public async Task<IActionResult> GetGameLibraryContext(string gameId)
+    {
+        var result = await _libraryService.GetGameLibraryContextAsync(GetUserId(), gameId);
+        return Ok(result);
+    }
+
+    [HttpGet("game/{gameId}/review")]
+    public async Task<IActionResult> GetMyReview(string gameId)
+    {
+        var review = await _libraryService.GetMyReviewAsync(GetUserId(), gameId);
+        if (review == null) return NotFound(new { message = "Review not found." });
+        return Ok(review);
+    }
+
+    [HttpPost("game/{gameId}/review")]
+    [HttpPut("game/{gameId}/review")]
+    public async Task<IActionResult> SaveMyReview(string gameId, [FromBody] SaveGameReviewRequestDto request)
+    {
+        try
+        {
+            var result = await _libraryService.UpsertMyReviewAsync(GetUserId(), gameId, request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpDelete("game/{gameId}/review")]
+    public async Task<IActionResult> DeleteMyReview(string gameId)
+    {
+        try
+        {
+            await _libraryService.DeleteMyReviewAsync(GetUserId(), gameId);
+            return Ok(new { message = "Review deleted." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> CheckoutCart()
+    {
+        try
+        {
+            var count = await _libraryService.CheckoutCartAsync(GetUserId());
+            return Ok(new { message = $"Successfully added {count} game(s) to your library.", addedCount = count });
+        }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
 }

@@ -3,6 +3,7 @@
 public class CommunityPostDto
 {
     public string Id { get; set; } = string.Empty;
+    public string? GameId { get; set; }
 
     public string AuthorUsername { get; set; } = string.Empty;
     public string AuthorAvatarUrl { get; set; } = string.Empty;

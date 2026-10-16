@@ -1,4 +1,5 @@
 ﻿using Slush.Application.DTOs.Common;
+using Slush.Application.DTOs.Community;
 using Slush.Application.DTOs.Library;
 
 namespace Slush.Application.Interfaces;
@@ -18,4 +19,21 @@ public interface ILibraryService
     Task AddGameToCollectionAsync(Guid userId, Guid collectionId, string gameId);
     Task RemoveGameFromCollectionAsync(Guid userId, Guid collectionId, string gameId);
     Task<List<LibraryGameDto>> GetCollectionGamesAsync(Guid userId, Guid collectionId);
+
+    Task<LibraryHomeDto> GetLibraryHomeAsync(Guid userId);
+    Task<PagedResultDto<CommunityPostDto>> GetLibraryFeedAsync(
+        Guid userId,
+        string source,
+        string type,
+        string sort,
+        int page,
+        int pageSize);
+
+    Task<GameLibraryContextDto> GetGameLibraryContextAsync(Guid userId, string gameId);
+
+    Task<UserGameReviewDto?> GetMyReviewAsync(Guid userId, string gameId);
+    Task<UserGameReviewDto> UpsertMyReviewAsync(Guid userId, string gameId, SaveGameReviewRequestDto request);
+    Task DeleteMyReviewAsync(Guid userId, string gameId);
+
+    Task<int> CheckoutCartAsync(Guid userId);
 }

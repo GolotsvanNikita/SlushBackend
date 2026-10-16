@@ -50,6 +50,7 @@ public class CommunityService : ICommunityService
             .Select(p => new CommunityPostDto
             {
                 Id = p.Id.ToString(),
+                GameId = p.GameId,
                 AuthorUsername = p.User.Username,
                 AuthorAvatarUrl = p.User.AvatarUrl,
                 PostType = p.PostType.ToString(),
