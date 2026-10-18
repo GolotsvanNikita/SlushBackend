@@ -205,15 +205,4 @@ public class LibraryController : ControllerBase
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
     }
-
-    [HttpPost("checkout")]
-    public async Task<IActionResult> CheckoutCart()
-    {
-        try
-        {
-            var count = await _libraryService.CheckoutCartAsync(GetUserId());
-            return Ok(new { message = $"Successfully added {count} game(s) to your library.", addedCount = count });
-        }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
-    }
 }
