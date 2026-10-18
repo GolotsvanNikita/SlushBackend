@@ -69,6 +69,9 @@ public class SteamCatalogService : ISteamCatalogService
             Publisher = data.TryGetProperty("publishers", out var pubs) && pubs.ValueKind == JsonValueKind.Array && pubs.GetArrayLength() > 0 ? pubs[0].GetString() ?? "" : "",
         };
 
+        result.IsFree = data.TryGetProperty("is_free", out var isFreeProp) &&
+                        isFreeProp.ValueKind == JsonValueKind.True;
+
         if (data.TryGetProperty("pc_requirements", out var pcReq) && pcReq.ValueKind == JsonValueKind.Object)
         {
             result.PcRequirements.Minimum = pcReq.TryGetProperty("minimum", out var min) ? min.GetString() ?? "" : "";

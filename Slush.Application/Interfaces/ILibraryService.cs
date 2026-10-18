@@ -34,6 +34,4 @@ public interface ILibraryService
     Task<UserGameReviewDto?> GetMyReviewAsync(Guid userId, string gameId);
     Task<UserGameReviewDto> UpsertMyReviewAsync(Guid userId, string gameId, SaveGameReviewRequestDto request);
     Task DeleteMyReviewAsync(Guid userId, string gameId);
-
-    Task<int> CheckoutCartAsync(Guid userId);
 }

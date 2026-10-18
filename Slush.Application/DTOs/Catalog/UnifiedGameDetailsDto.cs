@@ -14,6 +14,7 @@ public class UnifiedGameDetailsDto
     public decimal Price { get; set; }
     public decimal OldPrice { get; set; }
     public int DiscountPercent { get; set; }
+    public bool IsFree { get; set; } = false;
 
     public List<string> Tags { get; set; } = new();
 

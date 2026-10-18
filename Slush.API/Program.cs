@@ -90,6 +90,7 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
+builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
