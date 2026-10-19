@@ -55,6 +55,20 @@ public class PurchaseService : IPurchaseService
             await _uow.BeginTransactionAsync();
             try
             {
+                user = await userRepo.AsQueryable()
+                    .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+                if (user == null)
+                    throw new UnauthorizedAccessException("User not found.");
+
+                bool alreadyOwnedInTx = await userGameRepo.AsQueryable()
+                    .AnyAsync(ug => ug.UserId == userId && ug.GameId == gameId);
+                if (alreadyOwnedInTx)
+                    throw new InvalidOperationException("You already own this game.");
+
+                if (user.Balance < actualPrice)
+                    throw new InvalidOperationException(
+                        $"Insufficient funds. Game price is ${actualPrice:F2}, but your balance is ${user.Balance:F2}.");
+
                 user.Balance -= actualPrice;
                 userRepo.Update(user);
 
@@ -78,15 +92,18 @@ public class PurchaseService : IPurchaseService
                 };
                 await userGameRepo.AddAsync(userGame);
 
-                var walletTx = new WalletTransaction
+                if (actualPrice > 0)
                 {
-                    UserId = userId,
-                    Amount = -actualPrice,
-                    Type = TransactionType.Purchase,
-                    Title = $"Purchase: {gameDetails.Title} (AppID: {gameId})",
-                    CreatedAt = now
-                };
-                await _uow.Repository<WalletTransaction>().AddAsync(walletTx);
+                    var walletTx = new WalletTransaction
+                    {
+                        UserId = userId,
+                        Amount = -actualPrice,
+                        Type = TransactionType.Purchase,
+                        Title = $"Purchase: {gameDetails.Title} (AppID: {gameId})",
+                        CreatedAt = now
+                    };
+                    await _uow.Repository<WalletTransaction>().AddAsync(walletTx);
+                }
 
                 var wishlistRepo = _uow.Repository<WishlistItem>();
                 var wishItem = await wishlistRepo.AsQueryable()
@@ -113,6 +130,11 @@ public class PurchaseService : IPurchaseService
                     NewBalance = user.Balance,
                     PurchasedAt = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 };
+            }
+            catch (DbUpdateException)
+            {
+                await _uow.RollbackTransactionAsync();
+                throw new InvalidOperationException("Purchase conflict detected: you already own this game or a parallel transaction is in progress.");
             }
             catch
             {
@@ -180,6 +202,21 @@ public class PurchaseService : IPurchaseService
             await _uow.BeginTransactionAsync();
             try
             {
+                user = await userRepo.AsQueryable()
+                    .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
+                if (user == null)
+                    throw new UnauthorizedAccessException("User not found.");
+
+                var requestedIds = validatedGames.Select(g => g.CartItem.GameId).ToList();
+                bool anyAlreadyOwnedInTx = await userGameRepo.AsQueryable()
+                    .AnyAsync(ug => ug.UserId == userId && requestedIds.Contains(ug.GameId));
+                if (anyAlreadyOwnedInTx)
+                    throw new InvalidOperationException("One or more games in your cart are already in your library.");
+
+                if (user.Balance < totalCost)
+                    throw new InvalidOperationException(
+                        $"Insufficient funds for checkout. Total cost is ${totalCost:F2}, but your balance is ${user.Balance:F2}.");
+
                 user.Balance -= totalCost;
                 userRepo.Update(user);
 
@@ -203,14 +240,17 @@ public class PurchaseService : IPurchaseService
                         AcquiredAt = now
                     });
 
-                    await txRepo.AddAsync(new WalletTransaction
+                    if (game.ActualPrice > 0)
                     {
-                        UserId = userId,
-                        Amount = -game.ActualPrice,
-                        Type = TransactionType.Purchase,
-                        Title = $"Purchase: {game.Title} (AppID: {game.CartItem.GameId})",
-                        CreatedAt = now
-                    });
+                        await txRepo.AddAsync(new WalletTransaction
+                        {
+                            UserId = userId,
+                            Amount = -game.ActualPrice,
+                            Type = TransactionType.Purchase,
+                            Title = $"Purchase: {game.Title} (AppID: {game.CartItem.GameId})",
+                            CreatedAt = now
+                        });
+                    }
 
                     var wishItem = await wishlistRepo.AsQueryable()
                         .FirstOrDefaultAsync(w => w.UserId == userId && w.GameId == game.CartItem.GameId);
@@ -244,6 +284,11 @@ public class PurchaseService : IPurchaseService
                     NewBalance = user.Balance,
                     Items = results
                 };
+            }
+            catch (DbUpdateException)
+            {
+                await _uow.RollbackTransactionAsync();
+                throw new InvalidOperationException("Checkout conflict detected: one of the games is already owned or a parallel purchase is in progress.");
             }
             catch
             {
