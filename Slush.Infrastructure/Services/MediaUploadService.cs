@@ -85,4 +85,37 @@ public class MediaUploadService : IMediaUploadService
         var uploadResult = await _cloudinary.UploadAsync(uploadParams);
         return uploadResult.SecureUrl?.ToString();
     }
+
+    public async Task<string?> UploadChatFileAsync(IFormFile file)
+    {
+        if (file.Length == 0) return null;
+
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new CloudinaryDotNet.Actions.RawUploadParams
+        {
+            File = new CloudinaryDotNet.FileDescription(file.FileName, stream),
+            Folder = "slush/chat_files"
+        };
+
+        var result = await _cloudinary.UploadAsync(uploadParams);
+        return result.Error != null ? null : result.SecureUrl.ToString();
+    }
+
+    public async Task<(string? Url, int? DurationSeconds)> UploadVoiceMessageAsync(IFormFile file)
+    {
+        if (file.Length == 0) return (null, null);
+
+        await using var stream = file.OpenReadStream();
+        var uploadParams = new CloudinaryDotNet.Actions.VideoUploadParams
+        {
+            File = new CloudinaryDotNet.FileDescription(file.FileName, stream),
+            Folder = "slush/chat_voices"
+        };
+
+        var result = await _cloudinary.UploadAsync(uploadParams);
+        if (result.Error != null) return (null, null);
+
+        int? duration = result.Duration > 0 ? (int)Math.Round(result.Duration) : null;
+        return (result.SecureUrl.ToString(), duration);
+    }
 }

@@ -34,6 +34,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FriendRequest> FriendRequests { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<LibraryCollection> LibraryCollections { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<ChatConversationSetting> ChatConversationSettings { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -103,5 +105,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<UserGame>()
             .HasIndex(ug => new { ug.UserId, ug.GameId })
             .IsUnique();
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.HasOne(m => m.Sender)
+                .WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(m => m.Receiver)
+                .WithMany()
+                .HasForeignKey(m => m.ReceiverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(m => new { m.SenderId, m.ReceiverId, m.CreatedAt });
+            entity.HasIndex(m => new { m.ReceiverId, m.IsRead });
+        });
+
+        modelBuilder.Entity<ChatConversationSetting>(entity =>
+        {
+            entity.HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.Friend)
+                .WithMany()
+                .HasForeignKey(s => s.FriendId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(s => new { s.UserId, s.FriendId }).IsUnique();
+        });
     }
 }

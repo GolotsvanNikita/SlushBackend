@@ -91,6 +91,7 @@ builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpClient();
@@ -185,6 +186,7 @@ using (var scope = app.Services.CreateScope())
 
 app.MapHub<GlobeHub>("/hubs/globe");
 app.MapHub<OnlineHub>("/hubs/online");
+app.MapHub<ChatHub>("/hubs/chat");
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {

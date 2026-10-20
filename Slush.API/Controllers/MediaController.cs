@@ -114,4 +114,56 @@ public class MediaController : ControllerBase
 
         return Ok(new { url = screenshotUrl });
     }
+
+    [HttpPost("chat-file")]
+    public async Task<IActionResult> UploadChatFile(IFormFile file)
+    {
+        if (!TryGetCurrentUserId(out _)) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "File is required." });
+
+        var fileUrl = await _mediaService.UploadChatFileAsync(file);
+        if (fileUrl == null)
+            return BadRequest(new { message = "Failed to upload file to cloud." });
+
+        return Ok(new Slush.Application.DTOs.Chat.ChatMediaUploadResultDto
+        {
+            Url = fileUrl,
+            FileName = file.FileName,
+            FileSize = file.Length,
+            FormattedFileSize = FormatFileSize(file.Length)
+        });
+    }
+
+    [HttpPost("chat-voice")]
+    public async Task<IActionResult> UploadChatVoice(IFormFile file, [FromForm] int? durationSeconds = null)
+    {
+        if (!TryGetCurrentUserId(out _)) return Unauthorized();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Voice file is required." });
+
+        var (voiceUrl, cloudDuration) = await _mediaService.UploadVoiceMessageAsync(file);
+        if (voiceUrl == null)
+            return BadRequest(new { message = "Failed to upload voice message to cloud." });
+
+        return Ok(new Slush.Application.DTOs.Chat.ChatMediaUploadResultDto
+        {
+            Url = voiceUrl,
+            FileName = file.FileName,
+            FileSize = file.Length,
+            FormattedFileSize = FormatFileSize(file.Length),
+            DurationSeconds = durationSeconds ?? cloudDuration ?? 0
+        });
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes >= 1024 * 1024)
+            return $"{Math.Round(bytes / (1024d * 1024d), 1)} МБ";
+        if (bytes >= 1024)
+            return $"{Math.Round(bytes / 1024d, 1)} КБ";
+        return $"{bytes} Б";
+    }
 }
