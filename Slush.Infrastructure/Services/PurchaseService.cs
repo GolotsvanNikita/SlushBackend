@@ -9,6 +9,8 @@ namespace Slush.Infrastructure.Services;
 
 public class PurchaseService : IPurchaseService
 {
+    private const decimal UsdToUahRate = 45m;
+
     private readonly IUnitOfWork _uow;
     private readonly ISteamCatalogService _steamService;
 
@@ -46,11 +48,12 @@ public class PurchaseService : IPurchaseService
             if (gameDetails == null)
                 throw new KeyNotFoundException($"Game with ID '{gameId}' was not found in Steam catalog.");
 
-            decimal actualPrice = ExtractValidatedPrice(gameDetails.Price, gameDetails.IsFree);
+            decimal priceUsd = ExtractValidatedPrice(gameDetails.Price, gameDetails.IsFree);
+            decimal actualPrice = ConvertUsdToUah(priceUsd);
 
             if (user.Balance < actualPrice)
                 throw new InvalidOperationException(
-                    $"Insufficient funds. Game price is ${actualPrice:F2}, but your balance is ${user.Balance:F2}.");
+                    $"Недостатньо коштів. Ціна гри: {actualPrice:N2} ₴, баланс: {user.Balance:N2} ₴.");
 
             await _uow.BeginTransactionAsync();
             try
@@ -67,7 +70,7 @@ public class PurchaseService : IPurchaseService
 
                 if (user.Balance < actualPrice)
                     throw new InvalidOperationException(
-                        $"Insufficient funds. Game price is ${actualPrice:F2}, but your balance is ${user.Balance:F2}.");
+                        $"Недостатньо коштів. Ціна гри: {actualPrice:N2} ₴, баланс: {user.Balance:N2} ₴.");
 
                 user.Balance -= actualPrice;
                 userRepo.Update(user);
@@ -126,7 +129,7 @@ public class PurchaseService : IPurchaseService
                     GameId = gameId,
                     Title = gameDetails.Title,
                     PaidAmount = actualPrice,
-                    Currency = "USD",
+                    Currency = "UAH",
                     NewBalance = user.Balance,
                     PurchasedAt = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
                 };
@@ -185,7 +188,9 @@ public class PurchaseService : IPurchaseService
                 if (details == null)
                     throw new KeyNotFoundException($"Game '{item.Title}' ({item.GameId}) was not found in Steam catalog.");
 
-                decimal actualPrice = ExtractValidatedPrice(details.Price, details.IsFree);
+                decimal priceUsd = ExtractValidatedPrice(details.Price, details.IsFree);
+                decimal actualPrice = ConvertUsdToUah(priceUsd);
+
                 var cover = !string.IsNullOrWhiteSpace(details.Thumbnail)
                     ? details.Thumbnail
                     : item.ImageUrl;
@@ -197,7 +202,7 @@ public class PurchaseService : IPurchaseService
 
             if (user.Balance < totalCost)
                 throw new InvalidOperationException(
-                    $"Insufficient funds for checkout. Total cost is ${totalCost:F2}, but your balance is ${user.Balance:F2}.");
+                    $"Недостатньо коштів. Загальна сума: {totalCost:N2} ₴, баланс: {user.Balance:N2} ₴.");
 
             await _uow.BeginTransactionAsync();
             try
@@ -215,7 +220,7 @@ public class PurchaseService : IPurchaseService
 
                 if (user.Balance < totalCost)
                     throw new InvalidOperationException(
-                        $"Insufficient funds for checkout. Total cost is ${totalCost:F2}, but your balance is ${user.Balance:F2}.");
+                        $"Недостатньо коштів. Загальна сума: {totalCost:N2} ₴, баланс: {user.Balance:N2} ₴.");
 
                 user.Balance -= totalCost;
                 userRepo.Update(user);
@@ -266,7 +271,7 @@ public class PurchaseService : IPurchaseService
                         GameId = game.CartItem.GameId,
                         Title = game.Title,
                         PaidAmount = game.ActualPrice,
-                        Currency = "USD",
+                        Currency = "UAH",
                         NewBalance = user.Balance,
                         PurchasedAt = now.ToString("yyyy-MM-ddTHH:mm:ssZ")
                     });
@@ -280,7 +285,7 @@ public class PurchaseService : IPurchaseService
                     Message = $"Successfully purchased {results.Count} game(s).",
                     PurchasedCount = results.Count,
                     TotalPaid = totalCost,
-                    Currency = "USD",
+                    Currency = "UAH",
                     NewBalance = user.Balance,
                     Items = results
                 };
@@ -311,5 +316,13 @@ public class PurchaseService : IPurchaseService
             throw new InvalidOperationException("Game price is unavailable for purchase. It might be unreleased or delisted.");
 
         return Math.Round(price, 2);
+    }
+
+    private static decimal ConvertUsdToUah(decimal priceUsd)
+    {
+        if (priceUsd <= 0)
+            return 0;
+
+        return Math.Round(priceUsd * UsdToUahRate, 2);
     }
 }
