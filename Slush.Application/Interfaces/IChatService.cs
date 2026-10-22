@@ -13,4 +13,8 @@ public interface IChatService
     Task<List<ChatAttachmentMonthGroupDto>> GetSharedAttachmentsAsync(Guid userId, Guid friendId, ChatMessageType type);
     Task<bool> GetNotificationSettingAsync(Guid userId, Guid friendId);
     Task<bool> SetNotificationSettingAsync(Guid userId, Guid friendId, bool enabled);
+    Task<bool> SetBlockStatusAsync(Guid userId, Guid friendId, bool isBlocked);
+    Task ClearHistoryAsync(Guid userId, Guid friendId);
+    Task ReportUserAsync(Guid reporterId, Guid reportedUserId, ReportChatUserRequestDto request);
+    Task DeleteMessageAsync(Guid userId, Guid messageId);
 }

@@ -36,6 +36,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<LibraryCollection> LibraryCollections { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatConversationSetting> ChatConversationSettings { get; set; }
+    public DbSet<UserReport> UserReports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -135,6 +136,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(s => new { s.UserId, s.FriendId }).IsUnique();
+        });
+
+        modelBuilder.Entity<UserReport>(entity =>
+        {
+            entity.HasOne(r => r.Reporter)
+                .WithMany()
+                .HasForeignKey(r => r.ReporterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.ReportedUser)
+                .WithMany()
+                .HasForeignKey(r => r.ReportedUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(r => r.CreatedAt);
         });
     }
 }

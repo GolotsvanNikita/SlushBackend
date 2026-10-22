@@ -207,6 +207,12 @@ namespace Slush.Infrastructure.Migrations
                     b.Property<Guid>("FriendId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("HistoryClearedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsBlocked")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("NotificationsEnabled")
                         .HasColumnType("boolean");
 
@@ -854,6 +860,45 @@ namespace Slush.Infrastructure.Migrations
                     b.ToTable("UserPasswordHistories");
                 });
 
+            modelBuilder.Entity("Slush.Domain.Entities.UserReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ReportedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReporterId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("ReportedUserId");
+
+                    b.HasIndex("ReporterId");
+
+                    b.ToTable("UserReports");
+                });
+
             modelBuilder.Entity("Slush.Domain.Entities.VerificationCode", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1214,6 +1259,25 @@ namespace Slush.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Slush.Domain.Entities.UserReport", b =>
+                {
+                    b.HasOne("Slush.Domain.Entities.User", "ReportedUser")
+                        .WithMany()
+                        .HasForeignKey("ReportedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Slush.Domain.Entities.User", "Reporter")
+                        .WithMany()
+                        .HasForeignKey("ReporterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ReportedUser");
+
+                    b.Navigation("Reporter");
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.VerificationCode", b =>

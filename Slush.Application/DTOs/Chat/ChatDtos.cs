@@ -16,6 +16,9 @@ public class ChatConversationDto
 
     public int UnreadCount { get; set; }
     public bool NotificationsEnabled { get; set; } = true;
+
+    public bool IsBlockedByMe { get; set; }
+    public bool HasBlockedMe { get; set; }
 }
 
 public class ChatMessageDto
@@ -84,4 +87,16 @@ public class ChatAttachmentItemDto
 public class ToggleChatNotificationsRequestDto
 {
     public bool NotificationsEnabled { get; set; }
+}
+
+public class ToggleChatBlockRequestDto
+{
+    public bool IsBlocked { get; set; }
+}
+
+public class ReportChatUserRequestDto
+{
+    public string Reason { get; set; } = string.Empty;
+    public string? Details { get; set; }
+    public Guid? MessageId { get; set; }
 }

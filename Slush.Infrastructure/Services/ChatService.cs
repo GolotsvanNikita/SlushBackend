@@ -53,16 +53,25 @@ public class ChatService : IChatService
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
-        var settings = await _uow.Repository<ChatConversationSetting>().AsQueryable()
+        var mySettings = await _uow.Repository<ChatConversationSetting>().AsQueryable()
             .Where(s => s.UserId == userId && friendIds.Contains(s.FriendId))
-            .ToDictionaryAsync(s => s.FriendId, s => s.NotificationsEnabled);
+            .ToDictionaryAsync(s => s.FriendId);
+
+        var blockedMeFriendIds = await _uow.Repository<ChatConversationSetting>().AsQueryable()
+            .Where(s => friendIds.Contains(s.UserId) && s.FriendId == userId && s.IsBlocked)
+            .Select(s => s.UserId)
+            .ToListAsync();
 
         var result = new List<ChatConversationDto>();
 
         foreach (var friend in friends)
         {
+            mySettings.TryGetValue(friend.Id, out var setting);
+            var clearedAt = setting?.HistoryClearedAt;
+
             var chatMessages = messages
-                .Where(m => m.SenderId == friend.Id || m.ReceiverId == friend.Id)
+                .Where(m => (m.SenderId == friend.Id || m.ReceiverId == friend.Id)
+                            && (!clearedAt.HasValue || m.CreatedAt > clearedAt.Value))
                 .ToList();
 
             var lastMsg = chatMessages.FirstOrDefault();
@@ -96,7 +105,9 @@ public class ChatService : IChatService
                     ? lastMsg.CreatedAt.ToString("dd MMM", new CultureInfo("uk-UA"))
                     : null,
                 UnreadCount = unreadCount,
-                NotificationsEnabled = !settings.TryGetValue(friend.Id, out var enabled) || enabled
+                NotificationsEnabled = setting?.NotificationsEnabled ?? true,
+                IsBlockedByMe = setting?.IsBlocked ?? false,
+                HasBlockedMe = blockedMeFriendIds.Contains(friend.Id)
             });
         }
 
@@ -110,13 +121,18 @@ public class ChatService : IChatService
     public async Task<PagedResultDto<ChatMessageDto>> GetMessagesAsync(Guid userId, Guid friendId, int page = 1, int pageSize = 50)
     {
         await EnsureAreFriendsAsync(userId, friendId);
-
         await MarkConversationAsReadAsync(userId, friendId);
+
+        var setting = await _uow.Repository<ChatConversationSetting>().AsQueryable()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.FriendId == friendId);
+
+        var clearedAt = setting?.HistoryClearedAt;
 
         var query = _uow.Repository<ChatMessage>().AsQueryable()
             .Include(m => m.Sender)
-            .Where(m => (m.SenderId == userId && m.ReceiverId == friendId) ||
-                        (m.SenderId == friendId && m.ReceiverId == userId))
+            .Where(m => ((m.SenderId == userId && m.ReceiverId == friendId) ||
+                         (m.SenderId == friendId && m.ReceiverId == userId))
+                        && (!clearedAt.HasValue || m.CreatedAt > clearedAt.Value))
             .OrderByDescending(m => m.CreatedAt);
 
         var totalCount = await query.CountAsync();
@@ -137,6 +153,18 @@ public class ChatService : IChatService
     public async Task<ChatMessageDto> SendMessageAsync(Guid senderId, Guid friendId, SendChatMessageRequestDto request)
     {
         await EnsureAreFriendsAsync(senderId, friendId);
+
+        var settingRepo = _uow.Repository<ChatConversationSetting>().AsQueryable();
+
+        bool isBlockedByMe = await settingRepo
+            .AnyAsync(s => s.UserId == senderId && s.FriendId == friendId && s.IsBlocked);
+        if (isBlockedByMe)
+            throw new InvalidOperationException("Ви заблокували цього користувача. Розблокуйте його, щоб надіслати повідомлення.");
+
+        bool hasBlockedMe = await settingRepo
+            .AnyAsync(s => s.UserId == friendId && s.FriendId == senderId && s.IsBlocked);
+        if (hasBlockedMe)
+            throw new InvalidOperationException("Ви не можете надсилати повідомлення цьому користувачу, оскільки він заблокував вас.");
 
         if (request.MessageType == ChatMessageType.Text && string.IsNullOrWhiteSpace(request.Content))
             throw new ArgumentException("Message text cannot be empty.");
@@ -196,16 +224,22 @@ public class ChatService : IChatService
         if (type == ChatMessageType.Text)
             throw new ArgumentException("Attachment type must be Image, File, or Voice.");
 
+        var setting = await _uow.Repository<ChatConversationSetting>().AsQueryable()
+            .FirstOrDefaultAsync(s => s.UserId == userId && s.FriendId == friendId);
+
+        var clearedAt = setting?.HistoryClearedAt;
+
         var attachments = await _uow.Repository<ChatMessage>().AsQueryable()
             .Include(m => m.Sender)
             .Where(m => ((m.SenderId == userId && m.ReceiverId == friendId) ||
                          (m.SenderId == friendId && m.ReceiverId == userId))
+                        && (!clearedAt.HasValue || m.CreatedAt > clearedAt.Value)
                         && m.MessageType == type
                         && m.MediaUrl != null)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
-        var grouped = attachments
+        return attachments
             .GroupBy(m => new { m.CreatedAt.Year, m.CreatedAt.Month })
             .OrderByDescending(g => g.Key.Year)
             .ThenByDescending(g => g.Key.Month)
@@ -231,14 +265,15 @@ public class ChatService : IChatService
                 }).ToList()
             })
             .ToList();
-
-        return grouped;
     }
 
     public async Task<bool> GetNotificationSettingAsync(Guid userId, Guid friendId)
     {
         var setting = await _uow.Repository<ChatConversationSetting>().AsQueryable()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FriendId == friendId);
+
+        if (setting != null && setting.IsBlocked)
+            return false;
 
         return setting?.NotificationsEnabled ?? true;
     }
@@ -247,6 +282,72 @@ public class ChatService : IChatService
     {
         await EnsureAreFriendsAsync(userId, friendId);
 
+        var setting = await GetOrCreateSettingAsync(userId, friendId);
+        setting.NotificationsEnabled = enabled;
+        setting.UpdatedAt = DateTime.UtcNow;
+
+        _uow.Repository<ChatConversationSetting>().Update(setting);
+        await _uow.SaveChangesAsync();
+
+        return setting.NotificationsEnabled;
+    }
+
+    public async Task<bool> SetBlockStatusAsync(Guid userId, Guid friendId, bool isBlocked)
+    {
+        await EnsureAreFriendsAsync(userId, friendId);
+
+        var setting = await GetOrCreateSettingAsync(userId, friendId);
+        setting.IsBlocked = isBlocked;
+        setting.UpdatedAt = DateTime.UtcNow;
+
+        _uow.Repository<ChatConversationSetting>().Update(setting);
+        await _uow.SaveChangesAsync();
+
+        return setting.IsBlocked;
+    }
+
+    public async Task ClearHistoryAsync(Guid userId, Guid friendId)
+    {
+        await EnsureAreFriendsAsync(userId, friendId);
+
+        var setting = await GetOrCreateSettingAsync(userId, friendId);
+        setting.HistoryClearedAt = DateTime.UtcNow;
+        setting.UpdatedAt = DateTime.UtcNow;
+
+        _uow.Repository<ChatConversationSetting>().Update(setting);
+
+        await MarkConversationAsReadAsync(userId, friendId);
+        await _uow.SaveChangesAsync();
+    }
+
+    public async Task ReportUserAsync(Guid reporterId, Guid reportedUserId, ReportChatUserRequestDto request)
+    {
+        if (reporterId == reportedUserId)
+            throw new ArgumentException("You cannot report yourself.");
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Report reason is required.");
+
+        var reportedUser = await _uow.Repository<User>().GetByIdAsync(reportedUserId);
+        if (reportedUser == null)
+            throw new KeyNotFoundException("Reported user not found.");
+
+        var report = new UserReport
+        {
+            ReporterId = reporterId,
+            ReportedUserId = reportedUserId,
+            MessageId = request.MessageId,
+            Reason = request.Reason.Trim(),
+            Details = request.Details?.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.Repository<UserReport>().AddAsync(report);
+        await _uow.SaveChangesAsync();
+    }
+
+    private async Task<ChatConversationSetting> GetOrCreateSettingAsync(Guid userId, Guid friendId)
+    {
         var repo = _uow.Repository<ChatConversationSetting>();
         var setting = await repo.AsQueryable()
             .FirstOrDefaultAsync(s => s.UserId == userId && s.FriendId == friendId);
@@ -257,20 +358,15 @@ public class ChatService : IChatService
             {
                 UserId = userId,
                 FriendId = friendId,
-                NotificationsEnabled = enabled,
+                NotificationsEnabled = true,
+                IsBlocked = false,
                 UpdatedAt = DateTime.UtcNow
             };
             await repo.AddAsync(setting);
-        }
-        else
-        {
-            setting.NotificationsEnabled = enabled;
-            setting.UpdatedAt = DateTime.UtcNow;
-            repo.Update(setting);
+            await _uow.SaveChangesAsync();
         }
 
-        await _uow.SaveChangesAsync();
-        return setting.NotificationsEnabled;
+        return setting;
     }
 
     private async Task EnsureAreFriendsAsync(Guid userId, Guid friendId)
@@ -305,6 +401,21 @@ public class ChatService : IChatService
         TimeFormatted = m.CreatedAt.ToString("HH:mm"),
         DateFormatted = m.CreatedAt.ToString("dd.MM.yyyy")
     };
+
+    public async Task DeleteMessageAsync(Guid userId, Guid messageId)
+    {
+        var repo = _uow.Repository<ChatMessage>();
+        var message = await repo.GetByIdAsync(messageId);
+
+        if (message == null)
+            throw new KeyNotFoundException("Message not found.");
+
+        if (message.SenderId != userId)
+            throw new UnauthorizedAccessException("You can only delete your own messages.");
+
+        repo.Remove(message);
+        await _uow.SaveChangesAsync();
+    }
 
     private static string? FormatFileSize(long? bytes)
     {

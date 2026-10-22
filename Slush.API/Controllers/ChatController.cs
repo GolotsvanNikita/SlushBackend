@@ -90,6 +90,7 @@ public class ChatController : ControllerBase
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return StatusCode(403, new { message = ex.Message }); }
     }
 
     [HttpPut("{friendId}/read")]
@@ -119,6 +120,57 @@ public class ChatController : ControllerBase
             var enabled = await _chatService.SetNotificationSettingAsync(GetUserId(), friendId, request.NotificationsEnabled);
             return Ok(new { friendId, notificationsEnabled = enabled });
         }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpPut("{friendId}/block")]
+    public async Task<IActionResult> ToggleBlock(Guid friendId, [FromBody] ToggleChatBlockRequestDto request)
+    {
+        try
+        {
+            var isBlocked = await _chatService.SetBlockStatusAsync(GetUserId(), friendId, request.IsBlocked);
+            return Ok(new
+            {
+                friendId,
+                isBlocked,
+                message = isBlocked ? "Користувача заблоковано." : "Користувача розблоковано."
+            });
+        }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpDelete("{friendId}/history")]
+    public async Task<IActionResult> ClearHistory(Guid friendId)
+    {
+        try
+        {
+            await _chatService.ClearHistoryAsync(GetUserId(), friendId);
+            return Ok(new { message = "Історію чату очищено." });
+        }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpPost("{friendId}/report")]
+    public async Task<IActionResult> ReportUser(Guid friendId, [FromBody] ReportChatUserRequestDto request)
+    {
+        try
+        {
+            await _chatService.ReportUserAsync(GetUserId(), friendId, request);
+            return Ok(new { message = "Скаргу успішно надіслано модераторам." });
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
+    [HttpDelete("messages/{messageId}")]
+    public async Task<IActionResult> DeleteMessage(Guid messageId)
+    {
+        try
+        {
+            await _chatService.DeleteMessageAsync(GetUserId(), messageId);
+            return Ok(new { message = "Повідомлення успішно видалено." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
     }
 }

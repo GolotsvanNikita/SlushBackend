@@ -11,6 +11,8 @@ public class ChatConversationSetting
     public User Friend { get; set; } = null!;
 
     public bool NotificationsEnabled { get; set; } = true;
+    public bool IsBlocked { get; set; } = false;
+    public DateTime? HistoryClearedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
