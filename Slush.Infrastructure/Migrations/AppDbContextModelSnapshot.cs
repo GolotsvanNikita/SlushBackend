@@ -475,6 +475,9 @@ namespace Slush.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("RelatedEntityId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("text");

@@ -12,10 +12,11 @@ namespace Slush.Application.Interfaces
     {
         Task UpdateConfigAsync(NotificationChannel channel, UpdateNotificationChannelRequestDto request);
         Task<UpdateNotificationChannelRequestDto> GetConfigAsync(NotificationChannel channel);
-        Task SendNotificationAsync(Guid userId, string message, string type);
+        Task SendNotificationAsync(Guid userId, string message, string type, Guid? relatedEntityId = null);
         Task<PagedResultDto<NotificationDto>> GetUserNotificationsAsync(Guid userId, int page, int pageSize);
         Task<int> GetUnreadCountAsync(Guid userId);
         Task MarkAsReadAsync(Guid userId, Guid notificationId);
         Task MarkAllAsReadAsync(Guid userId);
+        Task MarkRelatedNotificationsAsReadAsync(Guid userId, string type, Guid relatedEntityId);
     }
 }

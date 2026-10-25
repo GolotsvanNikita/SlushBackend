@@ -73,7 +73,7 @@ namespace Slush.Infrastructure.Services
             );
         }
 
-        public async Task SendNotificationAsync(Guid userId, string message, string type)
+        public async Task SendNotificationAsync(Guid userId, string message, string type, Guid? relatedEntityId = null)
         {
             var settings = await _uow.Repository<UserNotificationSettings>().AsQueryable()
                 .FirstOrDefaultAsync(s => s.UserId == userId);
@@ -103,6 +103,7 @@ namespace Slush.Infrastructure.Services
                 Message = message,
                 Type = type,
                 IsRead = false,
+                RelatedEntityId = relatedEntityId,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -155,6 +156,28 @@ namespace Slush.Infrastructure.Services
             var repo = _uow.Repository<Notification>();
             var unreadNotifications = await repo.AsQueryable()
                 .Where(n => n.UserId == userId && !n.IsRead)
+                .ToListAsync();
+
+            if (unreadNotifications.Any())
+            {
+                foreach (var notification in unreadNotifications)
+                {
+                    notification.IsRead = true;
+                    repo.Update(notification);
+                }
+                await _uow.SaveChangesAsync();
+            }
+        }
+
+        public async Task MarkRelatedNotificationsAsReadAsync(Guid userId, string type, Guid relatedEntityId)
+        {
+            var repo = _uow.Repository<Notification>();
+
+            var unreadNotifications = await repo.AsQueryable()
+                .Where(n => n.UserId == userId &&
+                            n.Type == type &&
+                            n.RelatedEntityId == relatedEntityId &&
+                            !n.IsRead)
                 .ToListAsync();
 
             if (unreadNotifications.Any())

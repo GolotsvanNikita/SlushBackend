@@ -16,11 +16,19 @@ public class ChatController : ControllerBase
 {
     private readonly IChatService _chatService;
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly INotificationService _notificationService;
+    private readonly ILogger<ChatController> _logger;
 
-    public ChatController(IChatService chatService, IHubContext<ChatHub> hubContext)
+    public ChatController(
+        IChatService chatService,
+        IHubContext<ChatHub> hubContext,
+        INotificationService notificationService,
+        ILogger<ChatController> logger)
     {
         _chatService = chatService;
         _hubContext = hubContext;
+        _notificationService = notificationService;
+        _logger = logger;
     }
 
     private Guid GetUserId()
@@ -52,11 +60,36 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> SendMessage(Guid friendId, [FromBody] SendChatMessageRequestDto request)
     {
         var senderId = GetUserId();
+
         try
         {
             var messageDto = await _chatService.SendMessageAsync(senderId, friendId, request);
 
             bool receiverNotificationsEnabled = await _chatService.GetNotificationSettingAsync(friendId, senderId);
+
+            if (receiverNotificationsEnabled)
+            {
+                var preview = messageDto.MessageType switch
+                {
+                    "Image" => "📷 Фото",
+                    "File" => $"📎 {messageDto.FileName ?? "Файл"}",
+                    "Voice" => "🎤 Голосове повідомлення",
+                    _ => messageDto.Content ?? "Нове повідомлення"
+                };
+
+                try
+                {
+                    await _notificationService.SendNotificationAsync(
+                        friendId,
+                        $"{messageDto.SenderUsername}: {preview}",
+                        "ChatMessage",
+                        senderId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Не вдалося створити сповіщення ChatMessage для користувача {UserId}", friendId);
+                }
+            }
 
             var messageForReceiver = new ChatMessageDto
             {
@@ -80,11 +113,13 @@ public class ChatController : ControllerBase
                 DateFormatted = messageDto.DateFormatted
             };
 
-            await _hubContext.Clients.Group($"user_{friendId}").SendAsync("ReceiveChatMessage", new
-            {
-                message = messageForReceiver,
-                shouldNotify = receiverNotificationsEnabled
-            });
+            await _hubContext.Clients
+                .Group($"user_{friendId}")
+                .SendAsync("ReceiveChatMessage", new
+                {
+                    message = messageForReceiver,
+                    shouldNotify = receiverNotificationsEnabled
+                });
 
             return Ok(messageDto);
         }
@@ -96,7 +131,12 @@ public class ChatController : ControllerBase
     [HttpPut("{friendId}/read")]
     public async Task<IActionResult> MarkAsRead(Guid friendId)
     {
-        var readCount = await _chatService.MarkConversationAsReadAsync(GetUserId(), friendId);
+        var userId = GetUserId();
+
+        var readCount = await _chatService.MarkConversationAsReadAsync(userId, friendId);
+
+        await _notificationService.MarkRelatedNotificationsAsReadAsync(userId, "ChatMessage", friendId);
+
         return Ok(new { readCount });
     }
 
