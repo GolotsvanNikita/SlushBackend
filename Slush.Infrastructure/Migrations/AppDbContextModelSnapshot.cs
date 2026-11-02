@@ -653,6 +653,12 @@ namespace Slush.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CurrentGameId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrentGameTitle")
+                        .HasColumnType("text");
+
                     b.Property<int>("CurrentXp")
                         .HasColumnType("integer");
 
@@ -734,6 +740,9 @@ namespace Slush.Infrastructure.Migrations
                     b.Property<Guid?>("CollectionId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("CurrentSessionStartedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Developer")
                         .HasColumnType("text");
 
@@ -756,6 +765,12 @@ namespace Slush.Infrastructure.Migrations
 
                     b.Property<bool?>("IsInstalled")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastPlayedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PlaytimeMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("numeric");

@@ -83,7 +83,9 @@ public class GameCatalogController : ControllerBase
             }).ToList();
         }
 
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                          ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
         if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out Guid userId))
         {
             gameData.IsInWishlist = await _uow.Repository<WishlistItem>().AsQueryable()
@@ -91,6 +93,24 @@ public class GameCatalogController : ControllerBase
 
             gameData.IsInCart = await _uow.Repository<CartItem>().AsQueryable()
                 .AnyAsync(c => c.UserId == userId && c.GameId == appId);
+
+            var friendIds = await _uow.Repository<FriendRequest>().AsQueryable()
+                .Where(r => (r.SenderId == userId || r.ReceiverId == userId)
+                            && r.Status == FriendRequestStatus.Accepted)
+                .Select(r => r.SenderId == userId ? r.ReceiverId : r.SenderId)
+                .ToListAsync();
+
+            if (friendIds.Any())
+            {
+                gameData.FriendsPlaying = await _uow.Repository<User>().AsQueryable()
+                    .Where(u => friendIds.Contains(u.Id) && u.CurrentGameId == appId)
+                    .Select(u => new FriendPlayingDto
+                    {
+                        Username = u.Username,
+                        Status = $"Зараз грає в {u.CurrentGameTitle}"
+                    })
+                    .ToListAsync();
+            }
         }
 
         return Ok(gameData);

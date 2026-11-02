@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Slush.API.Hubs;
 using Slush.Application.DTOs.Library;
 using Slush.Application.Interfaces;
 using System.Security.Claims;
@@ -12,10 +14,12 @@ namespace Slush.API.Controllers;
 public class LibraryController : ControllerBase
 {
     private readonly ILibraryService _libraryService;
+    private readonly IHubContext<ChatHub> _hubContext;
 
-    public LibraryController(ILibraryService libraryService)
+    public LibraryController(ILibraryService libraryService, IHubContext<ChatHub> hubContext)
     {
         _libraryService = libraryService;
+        _hubContext = hubContext;
     }
 
     private Guid GetUserId()
@@ -204,5 +208,52 @@ public class LibraryController : ControllerBase
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
+
+    [HttpPost("{gameId}/play/start")]
+    public async Task<IActionResult> StartGame(string gameId)
+    {
+        try
+        {
+            var (session, toast, friendIds) = await _libraryService.StartGameSessionAsync(GetUserId(), gameId);
+
+            if (friendIds.Any())
+            {
+                var groups = friendIds.Select(id => $"user_{id}").ToList();
+                await _hubContext.Clients.Groups(groups).SendAsync("FriendPresenceChanged", toast);
+            }
+
+            return Ok(session);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
+    [HttpPost("{gameId}/play/heartbeat")]
+    public async Task<IActionResult> HeartbeatGame(string gameId)
+    {
+        try
+        {
+            var session = await _libraryService.HeartbeatGameSessionAsync(GetUserId(), gameId);
+            return Ok(session);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
+    [HttpPost("{gameId}/play/stop")]
+    public async Task<IActionResult> StopGame(string gameId)
+    {
+        try
+        {
+            var (session, toast, friendIds) = await _libraryService.StopGameSessionAsync(GetUserId(), gameId);
+
+            if (friendIds.Any())
+            {
+                var groups = friendIds.Select(id => $"user_{id}").ToList();
+                await _hubContext.Clients.Groups(groups).SendAsync("FriendPresenceChanged", toast);
+            }
+
+            return Ok(session);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
     }
 }

@@ -249,12 +249,24 @@ public class LibraryService : ILibraryService
         HeaderImage = g.HeaderImage,
         Developer = g.Developer,
         ReleaseDate = g.ReleaseDate,
-        DiskSize = g.DiskSize,
+        DiskSize = g.DiskSize ?? "Браузерний клієнт",
         IsFavorite = g.IsFavorite,
         CollectionId = g.CollectionId,
-        IsInstalled = g.IsInstalled,
-        AcquiredAt = g.AcquiredAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        IsInstalled = true,
+        AcquiredAt = g.AcquiredAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+        PlaytimeMinutes = g.PlaytimeMinutes,
+        PlaytimeHours = Math.Round(g.PlaytimeMinutes / 60.0, 1),
+        PlaytimeFormatted = FormatPlaytime(g.PlaytimeMinutes),
+        LastPlayedAt = g.LastPlayedAt?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+        IsCurrentlyPlaying = g.CurrentSessionStartedAt.HasValue
     };
+
+    private static string FormatPlaytime(int minutes)
+    {
+        if (minutes <= 0) return "0 хв.";
+        if (minutes < 60) return $"{minutes} хв.";
+        return $"{Math.Round(minutes / 60.0, 1)} год.";
+    }
 
     public async Task<LibraryHomeDto> GetLibraryHomeAsync(Guid userId)
     {
@@ -531,5 +543,195 @@ public class LibraryService : ILibraryService
 
         repo.Remove(existing);
         await _uow.SaveChangesAsync();
+    }
+
+    private const string DefaultBrowserGameUrl = "https:// hextris.io/";
+
+    public async Task<(GameSessionDto Session, FriendPresenceToastDto Toast, List<Guid> FriendIds)> StartGameSessionAsync(Guid userId, string gameId)
+    {
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("User not found.");
+
+        var gameRepo = _uow.Repository<UserGame>();
+        var userGame = await gameRepo.AsQueryable()
+            .FirstOrDefaultAsync(g => g.UserId == userId && g.GameId == gameId)
+            ?? throw new KeyNotFoundException("Ця гра відсутня у вашій бібліотеці.");
+
+        var now = DateTime.UtcNow;
+
+        var activeGames = await gameRepo.AsQueryable()
+            .Where(g => g.UserId == userId && g.CurrentSessionStartedAt != null && g.GameId != gameId)
+            .ToListAsync();
+
+        foreach (var active in activeGames)
+        {
+            var elapsed = (int)Math.Max(1, (now - active.CurrentSessionStartedAt!.Value).TotalMinutes);
+            active.PlaytimeMinutes += elapsed;
+            active.CurrentSessionStartedAt = null;
+            gameRepo.Update(active);
+        }
+
+        if (!userGame.CurrentSessionStartedAt.HasValue)
+            userGame.CurrentSessionStartedAt = now;
+
+        userGame.LastPlayedAt = now;
+        userGame.IsInstalled = true;
+        gameRepo.Update(userGame);
+
+        user.CurrentGameId = userGame.GameId;
+        user.CurrentGameTitle = userGame.Title;
+        user.LastSeenAt = now;
+        userRepo.Update(user);
+
+        await _uow.SaveChangesAsync();
+
+        var friendIds = await GetAcceptedFriendIdsAsync(userId);
+
+        var sessionDto = new GameSessionDto
+        {
+            GameId = userGame.GameId,
+            GameTitle = userGame.Title,
+            CoverImage = userGame.ImageUrl,
+            IsPlaying = true,
+            PlayUrl = DefaultBrowserGameUrl.Trim(),
+            SessionStartedAt = userGame.CurrentSessionStartedAt,
+            TotalPlaytimeMinutes = userGame.PlaytimeMinutes,
+            TotalPlaytimeHours = Math.Round(userGame.PlaytimeMinutes / 60.0, 1),
+            PlaytimeFormatted = FormatPlaytime(userGame.PlaytimeMinutes)
+        };
+
+        var toastDto = new FriendPresenceToastDto
+        {
+            UserId = user.Id,
+            Username = user.Username,
+            AvatarUrl = user.AvatarUrl,
+            EventType = "InGame",
+            GameId = userGame.GameId,
+            GameTitle = userGame.Title,
+            GameCoverUrl = userGame.ImageUrl,
+            StatusText = $"Зараз грає в {userGame.Title}",
+            Timestamp = now
+        };
+
+        return (sessionDto, toastDto, friendIds);
+    }
+
+    public async Task<GameSessionDto> HeartbeatGameSessionAsync(Guid userId, string gameId)
+    {
+        var gameRepo = _uow.Repository<UserGame>();
+        var userGame = await gameRepo.AsQueryable()
+            .FirstOrDefaultAsync(g => g.UserId == userId && g.GameId == gameId)
+            ?? throw new KeyNotFoundException("Game not found in library.");
+
+        var now = DateTime.UtcNow;
+
+        if (userGame.CurrentSessionStartedAt.HasValue)
+        {
+            var elapsedMinutes = (int)(now - userGame.CurrentSessionStartedAt.Value).TotalMinutes;
+            if (elapsedMinutes >= 1)
+            {
+                userGame.PlaytimeMinutes += elapsedMinutes;
+                userGame.CurrentSessionStartedAt = now;
+                userGame.LastPlayedAt = now;
+                gameRepo.Update(userGame);
+            }
+        }
+
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId);
+        if (user != null)
+        {
+            user.LastSeenAt = now;
+            user.CurrentGameId = userGame.GameId;
+            user.CurrentGameTitle = userGame.Title;
+            userRepo.Update(user);
+        }
+
+        await _uow.SaveChangesAsync();
+
+        return new GameSessionDto
+        {
+            GameId = userGame.GameId,
+            GameTitle = userGame.Title,
+            CoverImage = userGame.ImageUrl,
+            IsPlaying = true,
+            PlayUrl = DefaultBrowserGameUrl.Trim(),
+            SessionStartedAt = userGame.CurrentSessionStartedAt,
+            TotalPlaytimeMinutes = userGame.PlaytimeMinutes,
+            TotalPlaytimeHours = Math.Round(userGame.PlaytimeMinutes / 60.0, 1),
+            PlaytimeFormatted = FormatPlaytime(userGame.PlaytimeMinutes)
+        };
+    }
+
+    public async Task<(GameSessionDto Session, FriendPresenceToastDto Toast, List<Guid> FriendIds)> StopGameSessionAsync(Guid userId, string gameId)
+    {
+        var userRepo = _uow.Repository<User>();
+        var user = await userRepo.GetByIdAsync(userId)
+            ?? throw new UnauthorizedAccessException("User not found.");
+
+        var gameRepo = _uow.Repository<UserGame>();
+        var userGame = await gameRepo.AsQueryable()
+            .FirstOrDefaultAsync(g => g.UserId == userId && g.GameId == gameId)
+            ?? throw new KeyNotFoundException("Game not found in library.");
+
+        var now = DateTime.UtcNow;
+
+        if (userGame.CurrentSessionStartedAt.HasValue)
+        {
+            var elapsedMinutes = (int)Math.Max(1, Math.Round((now - userGame.CurrentSessionStartedAt.Value).TotalMinutes));
+            userGame.PlaytimeMinutes += elapsedMinutes;
+            userGame.CurrentSessionStartedAt = null;
+            userGame.LastPlayedAt = now;
+            gameRepo.Update(userGame);
+        }
+
+        if (user.CurrentGameId == gameId)
+        {
+            user.CurrentGameId = null;
+            user.CurrentGameTitle = null;
+        }
+        user.LastSeenAt = now;
+        userRepo.Update(user);
+
+        await _uow.SaveChangesAsync();
+
+        var friendIds = await GetAcceptedFriendIdsAsync(userId);
+
+        var sessionDto = new GameSessionDto
+        {
+            GameId = userGame.GameId,
+            GameTitle = userGame.Title,
+            CoverImage = userGame.ImageUrl,
+            IsPlaying = false,
+            PlayUrl = string.Empty,
+            SessionStartedAt = null,
+            TotalPlaytimeMinutes = userGame.PlaytimeMinutes,
+            TotalPlaytimeHours = Math.Round(userGame.PlaytimeMinutes / 60.0, 1),
+            PlaytimeFormatted = FormatPlaytime(userGame.PlaytimeMinutes)
+        };
+
+        var toastDto = new FriendPresenceToastDto
+        {
+            UserId = user.Id,
+            Username = user.Username,
+            AvatarUrl = user.AvatarUrl,
+            EventType = "StoppedPlaying",
+            GameId = null,
+            GameTitle = null,
+            StatusText = "У мережі",
+            Timestamp = now
+        };
+
+        return (sessionDto, toastDto, friendIds);
+    }
+
+    public async Task<List<Guid>> GetAcceptedFriendIdsAsync(Guid userId)
+    {
+        return await _uow.Repository<FriendRequest>().AsQueryable()
+            .Where(r => (r.SenderId == userId || r.ReceiverId == userId)
+                        && r.Status == Domain.Enums.FriendRequestStatus.Accepted)
+            .Select(r => r.SenderId == userId ? r.ReceiverId : r.SenderId)
+            .ToListAsync();
     }
 }

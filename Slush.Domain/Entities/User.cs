@@ -25,7 +25,10 @@ namespace Slush.Domain.Entities
 
         public string Language { get; set; } = "uk";
         public decimal Balance { get; set; } = 0m;
-        public bool IsDeleted { get; set; } = false; 
+        public bool IsDeleted { get; set; } = false;
+
+        public string? CurrentGameId { get; set; }
+        public string? CurrentGameTitle { get; set; }
 
         public UserNotificationSettings NotificationSettings { get; set; } = null!;
         public ICollection<WalletTransaction> WalletTransactions { get; set; } = [];

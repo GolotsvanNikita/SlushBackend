@@ -20,6 +20,12 @@ public class UserGame
 
     public bool IsFavorite { get; set; } = false;
 
+    public int PlaytimeMinutes { get; set; } = 0;
+
+    public DateTime? LastPlayedAt { get; set; }
+
+    public DateTime? CurrentSessionStartedAt { get; set; }
+
     public Guid? CollectionId { get; set; }
     public LibraryCollection? Collection { get; set; }
 
