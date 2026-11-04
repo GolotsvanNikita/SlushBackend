@@ -140,7 +140,7 @@ public class FriendService : IFriendService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task<List<FriendUserDto>> GetFriendsAsync(Guid userId)
+    public async Task<PagedResultDto<FriendUserDto>> GetFriendsAsync(Guid userId, int page, int pageSize)
     {
         var requests = await _uow.Repository<FriendRequest>().AsQueryable()
             .Include(r => r.Sender)
@@ -151,9 +151,10 @@ public class FriendService : IFriendService
 
         var now = DateTime.UtcNow;
 
-        return requests
+        var allFriends = requests
             .Select(r => r.SenderId == userId ? r.Receiver : r.Sender)
             .Where(u => !u.IsDeleted)
+            .DistinctBy(u => u.Id)
             .Select(friend =>
             {
                 bool isOnline = friend.LastSeenAt.HasValue &&
@@ -171,6 +172,14 @@ public class FriendService : IFriendService
                 };
             })
             .ToList();
+
+        var totalCount = allFriends.Count;
+        var items = allFriends
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResultDto<FriendUserDto>(items, totalCount, page, pageSize);
     }
 
     public async Task<PagedResultDto<FriendRequestDto>> GetIncomingRequestsAsync(Guid userId, int page, int pageSize)
