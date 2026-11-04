@@ -83,6 +83,8 @@ public class GameCatalogController : ControllerBase
             }).ToList();
         }
 
+        gameData.FriendsPlaying = [];
+
         var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
                           ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -102,12 +104,20 @@ public class GameCatalogController : ControllerBase
 
             if (friendIds.Any())
             {
+                var staleCutoff = DateTime.UtcNow.AddMinutes(-3);
+
                 gameData.FriendsPlaying = await _uow.Repository<User>().AsQueryable()
-                    .Where(u => friendIds.Contains(u.Id) && u.CurrentGameId == appId)
+                    .Where(u => !u.IsDeleted
+                                && friendIds.Contains(u.Id)
+                                && u.CurrentGameId == appId
+                                && u.LastSeenAt != null
+                                && u.LastSeenAt >= staleCutoff)
                     .Select(u => new FriendPlayingDto
                     {
+                        UserId = u.Id,
                         Username = u.Username,
-                        Status = $"Зараз грає в {u.CurrentGameTitle}"
+                        AvatarUrl = u.AvatarUrl,
+                        Status = $"Зараз грає в {u.CurrentGameTitle ?? gameData.Title}"
                     })
                     .ToListAsync();
             }

@@ -16,9 +16,10 @@ public class LibraryGameDto
     public Guid? CollectionId { get; set; }
     public bool? IsInstalled { get; set; }
     public string AcquiredAt { get; set; } = string.Empty;
+
     public int PlaytimeMinutes { get; set; }
     public double PlaytimeHours { get; set; }
-    public string PlaytimeFormatted { get; set; } = "0 год.";
+    public string PlaytimeFormatted { get; set; } = "0 хв.";
     public string? LastPlayedAt { get; set; }
     public bool IsCurrentlyPlaying { get; set; }
 }
@@ -87,6 +88,7 @@ public class GameSessionDto
     public string CoverImage { get; set; } = string.Empty;
     public bool IsPlaying { get; set; }
     public string PlayUrl { get; set; } = string.Empty;
+    public bool CanEmbedInIframe { get; set; } = true;
     public DateTime? SessionStartedAt { get; set; }
     public int TotalPlaytimeMinutes { get; set; }
     public double TotalPlaytimeHours { get; set; }

@@ -94,6 +94,7 @@ builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHostedService<Slush.API.BackgroundServices.StaleGameSessionCleanupService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<ISteamCatalogService, Slush.Infrastructure.Services.SteamCatalogService>();
 builder.Services.AddHttpClient<ICatalogService, Slush.Infrastructure.Services.CheapSharkCatalogService>(client =>

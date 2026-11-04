@@ -140,36 +140,37 @@ public class FriendService : IFriendService
         await _uow.SaveChangesAsync();
     }
 
-    public async Task<PagedResultDto<FriendUserDto>> GetFriendsAsync(Guid userId, int page, int pageSize)
+    public async Task<List<FriendUserDto>> GetFriendsAsync(Guid userId)
     {
-        var query = _uow.Repository<FriendRequest>().AsQueryable()
+        var requests = await _uow.Repository<FriendRequest>().AsQueryable()
             .Include(r => r.Sender)
             .Include(r => r.Receiver)
-            .Where(r => (r.SenderId == userId || r.ReceiverId == userId) && r.Status == FriendRequestStatus.Accepted)
-            .OrderByDescending(r => r.RespondedAt);
-
-        var totalCount = await query.CountAsync();
-
-        var friendsList = await query
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(r => r.SenderId == userId ? r.Receiver : r.Sender)
-            .Select(u => new FriendUserDto
-            {
-                UserId = u.Id,
-                Username = u.Username,
-                AvatarUrl = u.AvatarUrl,
-                LastSeenAt = u.LastSeenAt
-            })
+            .Where(r => (r.SenderId == userId || r.ReceiverId == userId)
+                        && r.Status == FriendRequestStatus.Accepted)
             .ToListAsync();
 
-        foreach (var friend in friendsList)
-        {
-            friend.IsOnline = friend.LastSeenAt.HasValue &&
-                              (DateTime.UtcNow - friend.LastSeenAt.Value) <= TimeSpan.FromMinutes(2);
-        }
+        var now = DateTime.UtcNow;
 
-        return new PagedResultDto<FriendUserDto>(friendsList, totalCount, page, pageSize);
+        return requests
+            .Select(r => r.SenderId == userId ? r.Receiver : r.Sender)
+            .Where(u => !u.IsDeleted)
+            .Select(friend =>
+            {
+                bool isOnline = friend.LastSeenAt.HasValue &&
+                                (now - friend.LastSeenAt.Value) <= TimeSpan.FromMinutes(3);
+
+                return new FriendUserDto
+                {
+                    UserId = friend.Id,
+                    Username = friend.Username,
+                    AvatarUrl = friend.AvatarUrl,
+                    LastSeenAt = friend.LastSeenAt,
+                    IsOnline = isOnline,
+                    CurrentGameId = isOnline ? friend.CurrentGameId : null,
+                    CurrentGameTitle = isOnline ? friend.CurrentGameTitle : null
+                };
+            })
+            .ToList();
     }
 
     public async Task<PagedResultDto<FriendRequestDto>> GetIncomingRequestsAsync(Guid userId, int page, int pageSize)

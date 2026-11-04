@@ -215,17 +215,21 @@ public class LibraryController : ControllerBase
     {
         try
         {
-            var (session, toast, friendIds) = await _libraryService.StartGameSessionAsync(GetUserId(), gameId);
+            var (session, toasts, friendIds) = await _libraryService.StartGameSessionAsync(GetUserId(), gameId);
 
-            if (friendIds.Any())
+            if (friendIds.Any() && toasts.Any())
             {
                 var groups = friendIds.Select(id => $"user_{id}").ToList();
-                await _hubContext.Clients.Groups(groups).SendAsync("FriendPresenceChanged", toast);
+                foreach (var toast in toasts)
+                {
+                    await _hubContext.Clients.Groups(groups).SendAsync("FriendPresenceChanged", toast);
+                }
             }
 
             return Ok(session);
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
     }
 
     [HttpPost("{gameId}/play/heartbeat")]
@@ -237,6 +241,7 @@ public class LibraryController : ControllerBase
             return Ok(session);
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
     }
 
     [HttpPost("{gameId}/play/stop")]
@@ -246,7 +251,7 @@ public class LibraryController : ControllerBase
         {
             var (session, toast, friendIds) = await _libraryService.StopGameSessionAsync(GetUserId(), gameId);
 
-            if (friendIds.Any())
+            if (toast != null && friendIds.Any())
             {
                 var groups = friendIds.Select(id => $"user_{id}").ToList();
                 await _hubContext.Clients.Groups(groups).SendAsync("FriendPresenceChanged", toast);
@@ -255,5 +260,6 @@ public class LibraryController : ControllerBase
             return Ok(session);
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return Unauthorized(new { message = ex.Message }); }
     }
 }

@@ -35,8 +35,9 @@ public interface ILibraryService
     Task<UserGameReviewDto> UpsertMyReviewAsync(Guid userId, string gameId, SaveGameReviewRequestDto request);
     Task DeleteMyReviewAsync(Guid userId, string gameId);
 
-    Task<(GameSessionDto Session, FriendPresenceToastDto Toast, List<Guid> FriendIds)> StartGameSessionAsync(Guid userId, string gameId);
+    Task<(GameSessionDto Session, List<FriendPresenceToastDto> Toasts, List<Guid> FriendIds)> StartGameSessionAsync(Guid userId, string gameId);
     Task<GameSessionDto> HeartbeatGameSessionAsync(Guid userId, string gameId);
-    Task<(GameSessionDto Session, FriendPresenceToastDto Toast, List<Guid> FriendIds)> StopGameSessionAsync(Guid userId, string gameId);
+    Task<(GameSessionDto Session, FriendPresenceToastDto? Toast, List<Guid> FriendIds)> StopGameSessionAsync(Guid userId, string gameId);
+    Task<List<(FriendPresenceToastDto Toast, List<Guid> FriendIds)>> CleanupStaleSessionsAsync(TimeSpan staleTimeout);
     Task<List<Guid>> GetAcceptedFriendIdsAsync(Guid userId);
 }
