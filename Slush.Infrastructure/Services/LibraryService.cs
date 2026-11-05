@@ -9,7 +9,7 @@ namespace Slush.Infrastructure.Services;
 
 public class LibraryService : ILibraryService
 {
-    private const string DefaultBrowserGameUrl = "https://hextris.io/";
+    private const string DefaultBrowserGameUrl = "https://ellisonleao.github.io/clumsy-bird/";
 
     private static readonly HashSet<string> NonEmbeddableHosts = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -818,12 +818,8 @@ public class LibraryService : ILibraryService
     private static GameSessionDto BuildGameSessionDto(UserGame userGame, bool isPlaying)
     {
         var playUrl = isPlaying ? DefaultBrowserGameUrl : string.Empty;
-        bool canEmbed = true;
 
-        if (!string.IsNullOrEmpty(playUrl) && Uri.TryCreate(playUrl, UriKind.Absolute, out var uri))
-        {
-            canEmbed = uri.Scheme == Uri.UriSchemeHttps && !NonEmbeddableHosts.Contains(uri.Host);
-        }
+        bool canEmbed = true;
 
         return new GameSessionDto
         {

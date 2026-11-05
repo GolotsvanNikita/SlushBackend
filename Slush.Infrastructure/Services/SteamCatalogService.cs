@@ -100,6 +100,33 @@ public class SteamCatalogService : ISteamCatalogService
             }
         }
 
+        if (data.TryGetProperty("movies", out var movies) && movies.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var movie in movies.EnumerateArray())
+            {
+                var videoDto = new GameVideoDto
+                {
+                    Id = movie.TryGetProperty("id", out var mId) && mId.ValueKind == JsonValueKind.Number ? mId.GetInt32() : 0,
+                    Name = movie.TryGetProperty("name", out var mName) ? mName.GetString() ?? "" : "",
+                    ThumbnailUrl = movie.TryGetProperty("thumbnail", out var mThumb) ? mThumb.GetString() ?? "" : ""
+                };
+
+                if (movie.TryGetProperty("webm", out var webmObj) && webmObj.ValueKind == JsonValueKind.Object)
+                {
+                    videoDto.VideoUrlWebm = webmObj.TryGetProperty("max", out var webmMax) ? webmMax.GetString() ?? "" :
+                                           (webmObj.TryGetProperty("480", out var webm480) ? webm480.GetString() ?? "" : "");
+                }
+
+                if (movie.TryGetProperty("mp4", out var mp4Obj) && mp4Obj.ValueKind == JsonValueKind.Object)
+                {
+                    videoDto.VideoUrlMp4 = mp4Obj.TryGetProperty("max", out var mp4Max) ? mp4Max.GetString() ?? "" :
+                                          (mp4Obj.TryGetProperty("480", out var mp4480) ? mp4480.GetString() ?? "" : "");
+                }
+
+                result.Videos.Add(videoDto);
+            }
+        }
+
         if (data.TryGetProperty("genres", out var genres) && genres.ValueKind == JsonValueKind.Array)
         {
             foreach (var genre in genres.EnumerateArray())

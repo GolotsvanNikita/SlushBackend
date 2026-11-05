@@ -10,6 +10,7 @@ public class UnifiedGameDetailsDto
     public string Publisher { get; set; } = string.Empty;
     public string ReleaseDate { get; set; } = string.Empty;
     public List<ScreenshotDto> Screenshots { get; set; } = new();
+    public List<GameVideoDto> Videos { get; set; } = new();
 
     public decimal Price { get; set; }
     public decimal OldPrice { get; set; }
@@ -42,6 +43,15 @@ public class ScreenshotDto
 {
     public int Id { get; set; }
     public string Image { get; set; } = string.Empty;
+}
+
+public class GameVideoDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string ThumbnailUrl { get; set; } = string.Empty;
+    public string VideoUrlWebm { get; set; } = string.Empty;
+    public string VideoUrlMp4 { get; set; } = string.Empty;
 }
 
 public class FriendPlayingDto
