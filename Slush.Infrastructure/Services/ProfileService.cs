@@ -53,7 +53,20 @@ public class ProfileService : IProfileService
                 Id = u.Id.ToString(),
                 Username = u.Username,
                 AvatarUrl = u.AvatarUrl,
-                Level = u.Level
+                Level = u.Level,
+
+                IsOnline = u.LastSeenAt.HasValue &&
+                            u.LastSeenAt.Value >= DateTime.UtcNow.AddMinutes(-2),
+
+                LastSeenAt = u.LastSeenAt,
+
+                CurrentGameId = (u.LastSeenAt.HasValue && u.LastSeenAt.Value >= DateTime.UtcNow.AddMinutes(-2))
+                                ? u.CurrentGameId
+                                : null,
+
+                CurrentGameTitle = (u.LastSeenAt.HasValue && u.LastSeenAt.Value >= DateTime.UtcNow.AddMinutes(-2))
+                                ? u.CurrentGameTitle
+                                : null
             }).ToListAsync();
 
         return new UserProfileDto

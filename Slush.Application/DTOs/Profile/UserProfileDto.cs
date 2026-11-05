@@ -50,6 +50,7 @@ public class FriendDto
     public string Id { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public string AvatarUrl { get; set; } = string.Empty;
+    public DateTime? LastSeenAt { get; set; }
     public int Level { get; set; }
 
     public bool IsOnline { get; set; }
