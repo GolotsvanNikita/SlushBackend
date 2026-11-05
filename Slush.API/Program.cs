@@ -106,9 +106,11 @@ builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IBadgeService, BadgeService>();
 builder.Services.AddDataProtection();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHostedService<Slush.API.BackgroundServices.StaleGameSessionCleanupService>();
+builder.Services.AddHostedService<Slush.API.BackgroundServices.BadgeBackgroundWorker>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<ISteamCatalogService, Slush.Infrastructure.Services.SteamCatalogService>();
 builder.Services.AddHttpClient<ICatalogService, Slush.Infrastructure.Services.CheapSharkCatalogService>(client =>

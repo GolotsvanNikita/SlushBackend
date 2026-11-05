@@ -18,10 +18,12 @@ public class LibraryService : ILibraryService
     };
 
     private readonly IUnitOfWork _uow;
+    private readonly IBadgeService _badgeService;
 
-    public LibraryService(IUnitOfWork uow)
+    public LibraryService(IUnitOfWork uow, IBadgeService badgeService)
     {
         _uow = uow;
+        _badgeService = badgeService;
     }
 
     public async Task<PagedResultDto<LibraryGameDto>> GetUserLibraryAsync(Guid userId, string? sort, int page, int pageSize)
@@ -521,6 +523,7 @@ public class LibraryService : ILibraryService
             repo.Update(existing);
         }
 
+        await _badgeService.CheckReviewBadgesAsync(userId);
         await _uow.SaveChangesAsync();
 
         var user = await _uow.Repository<User>().GetByIdAsync(userId);

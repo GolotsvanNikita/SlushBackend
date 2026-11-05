@@ -10,10 +10,12 @@ namespace Slush.Infrastructure.Services;
 public class CommunityService : ICommunityService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IBadgeService _badgeService;
 
-    public CommunityService(IUnitOfWork uow)
+    public CommunityService(IUnitOfWork uow, IBadgeService badgeService)
     {
         _uow = uow;
+        _badgeService = badgeService;
     }
 
     public async Task<PagedResultDto<CommunityPostDto>> GetGamePostsAsync(
@@ -83,6 +85,7 @@ public class CommunityService : ICommunityService
         };
 
         await _uow.Repository<CommunityPost>().AddAsync(post);
+        await _badgeService.CheckCommunityBadgesAsync(userId);
         await _uow.SaveChangesAsync();
 
         var user = await _uow.Repository<User>().GetByIdAsync(userId);

@@ -13,13 +13,15 @@ public class PurchaseService : IPurchaseService
 
     private readonly IUnitOfWork _uow;
     private readonly ISteamCatalogService _steamService;
+    private readonly IBadgeService _badgeService;
 
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _userLocks = new();
 
-    public PurchaseService(IUnitOfWork uow, ISteamCatalogService steamService)
+    public PurchaseService(IUnitOfWork uow, ISteamCatalogService steamService, IBadgeService badgeService)
     {
         _uow = uow;
         _steamService = steamService;
+        _badgeService = badgeService;
     }
 
     public async Task<PurchaseResultDto> PurchaseGameAsync(Guid userId, string gameId)
@@ -94,6 +96,7 @@ public class PurchaseService : IPurchaseService
                     AcquiredAt = now
                 };
                 await userGameRepo.AddAsync(userGame);
+                await _badgeService.CheckGamePurchasesBadgesAsync(userId);
 
                 if (actualPrice > 0)
                 {
