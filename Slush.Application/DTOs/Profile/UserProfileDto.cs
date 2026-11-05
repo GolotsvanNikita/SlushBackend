@@ -51,4 +51,8 @@ public class FriendDto
     public string Username { get; set; } = string.Empty;
     public string AvatarUrl { get; set; } = string.Empty;
     public int Level { get; set; }
+
+    public bool IsOnline { get; set; }
+    public string? CurrentGameId { get; set; }
+    public string? CurrentGameTitle { get; set; }
 }
