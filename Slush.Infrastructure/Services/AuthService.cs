@@ -9,6 +9,7 @@ using Slush.Domain.Enums;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Slush.Infrastructure.Services;
 
@@ -17,12 +18,15 @@ public class AuthService : IAuthService
     private readonly IUnitOfWork _uow;
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
+    private readonly IMemoryCache _cache;
 
-    public AuthService(IUnitOfWork uow, IEmailService emailService, IConfiguration configuration)
+
+    public AuthService(IUnitOfWork uow, IEmailService emailService, IConfiguration configuration, IMemoryCache cache)
     {
         _uow = uow;
         _emailService = emailService;
         _configuration = configuration;
+        _cache = cache;
     }
 
     public async Task RegisterAsync(RegisterDto request)
@@ -171,6 +175,12 @@ public class AuthService : IAuthService
 
     public async Task ResendVerificationCodeAsync(ResendVerificationCodeDto request)
     {
+        var cacheKey = $"ResendCode_{request.Email.ToLower()}";
+        if (_cache.TryGetValue(cacheKey, out _))
+        {
+            throw new Exception("Please wait a minute before requesting a new code.");
+        }
+
         var user = await _uow.Repository<User>().AsQueryable()
             .FirstOrDefaultAsync(u => u.Email == request.Email);
 
@@ -212,6 +222,8 @@ public class AuthService : IAuthService
         </div>";
 
         await _emailService.SendEmailAsync(user.Email, "Slush - New Email Verification Code", emailBody);
+
+        _cache.Set(cacheKey, true, TimeSpan.FromSeconds(60));
     }
 
     private string GenerateJwtToken(User user)
