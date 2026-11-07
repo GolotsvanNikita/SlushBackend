@@ -321,8 +321,11 @@ public class LibraryService : ILibraryService
         var highlights = await _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
             .Include(p => p.Likes)
-            .Where(p => p.PostType != Domain.Enums.CommunityPostType.News && p.LikesCount > 0 && p.CreatedAt >= weekAgo)
+            .Where(p =>
+                p.PostType != Domain.Enums.CommunityPostType.News &&
+                p.CreatedAt >= weekAgo)
             .OrderByDescending(p => p.LikesCount)
+            .ThenByDescending(p => p.CreatedAt)
             .Take(5)
             .Select(p => MapToCommunityPostDto(p, userId))
             .ToListAsync();
