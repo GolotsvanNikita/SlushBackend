@@ -152,5 +152,72 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
             entity.HasIndex(r => r.CreatedAt);
         });
+
+        modelBuilder.Entity<Badge>().HasData(
+            new Badge
+            {
+                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                Title = "Золотий зубарик",
+                Description = "10 років на сайті",
+                XpReward = 500,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918106/Property_1_golden-zubarik.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                Title = "Критик",
+                Description = "Опубліковано 25 рецензій",
+                XpReward = 120,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918368/Property_1_critic.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                Title = "Соціальна пташка",
+                Description = "Опубліковано 20 постів кожного типу у Спільноті",
+                XpReward = 100,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918355/Property_1_socialbird.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                Title = "Справжній геймер",
+                Description = "Куплено 50 ігор",
+                XpReward = 220,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918330/Property_1_gamer.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("44444444-4444-4444-4444-444444444444"),
+                Title = "Срібний зубарик",
+                Description = "5 років на сайті",
+                XpReward = 300,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918291/Property_1_silver-zubarik.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                Title = "Картограй",
+                Description = "Додано до бібліотеки 10 ігор у жанрі \"карткова гра\"",
+                XpReward = 80,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918258/Property_1_cardplayer.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                Title = "Бронзовий зубарик",
+                Description = "1 рік на сайті",
+                XpReward = 150,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918307/Property_1_bronze-zubarik.svg"
+            },
+            new Badge
+            {
+                Id = Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                Title = "Воїн світла",
+                Description = "Написано 15 гайдів",
+                XpReward = 150,
+                ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918320/Property_1_warrior.svg"
+            }
+        );
     }
 }

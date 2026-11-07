@@ -156,6 +156,72 @@ namespace Slush.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Badges");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Description = "10 років на сайті",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918106/Property_1_golden-zubarik.svg",
+                            Title = "Золотий зубарик",
+                            XpReward = 500
+                        },
+                        new
+                        {
+                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            Description = "Опубліковано 25 рецензій",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918368/Property_1_critic.svg",
+                            Title = "Критик",
+                            XpReward = 120
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            Description = "Опубліковано 20 постів кожного типу у Спільноті",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918355/Property_1_socialbird.svg",
+                            Title = "Соціальна пташка",
+                            XpReward = 100
+                        },
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            Description = "Куплено 50 ігор",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918330/Property_1_gamer.svg",
+                            Title = "Справжній геймер",
+                            XpReward = 220
+                        },
+                        new
+                        {
+                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            Description = "5 років на сайті",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918291/Property_1_silver-zubarik.svg",
+                            Title = "Срібний зубарик",
+                            XpReward = 300
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            Description = "Додано до бібліотеки 10 ігор у жанрі \"карткова гра\"",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918258/Property_1_cardplayer.svg",
+                            Title = "Картограй",
+                            XpReward = 80
+                        },
+                        new
+                        {
+                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
+                            Description = "1 рік на сайті",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918307/Property_1_bronze-zubarik.svg",
+                            Title = "Бронзовий зубарик",
+                            XpReward = 150
+                        },
+                        new
+                        {
+                            Id = new Guid("88888888-8888-8888-8888-888888888888"),
+                            Description = "Написано 15 гайдів",
+                            ImageUrl = "https://res.cloudinary.com/asabjy7s/image/upload/v1793918320/Property_1_warrior.svg",
+                            Title = "Воїн світла",
+                            XpReward = 150
+                        });
                 });
 
             modelBuilder.Entity("Slush.Domain.Entities.CartItem", b =>
