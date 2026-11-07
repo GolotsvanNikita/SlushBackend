@@ -160,14 +160,21 @@ public class LibraryController : ControllerBase
 
     [HttpGet("feed")]
     public async Task<IActionResult> GetLibraryFeed(
-        [FromQuery] string source = "library",
-        [FromQuery] string type = "all",
-        [FromQuery] string sort = "newest",
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+            [FromQuery] string source = "recommended",
+            [FromQuery] string type = "all",
+            [FromQuery] string sort = "popular",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
     {
-        var result = await _libraryService.GetLibraryFeedAsync(GetUserId(), source, type, sort, page, pageSize);
-        return Ok(result);
+        try
+        {
+            var result = await _libraryService.GetLibraryFeedAsync(GetUserId(), source, type, sort, page, pageSize);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpGet("game/{gameId}")]

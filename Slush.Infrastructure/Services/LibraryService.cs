@@ -4,6 +4,7 @@ using Slush.Application.DTOs.Community;
 using Slush.Application.DTOs.Library;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
+using Slush.Domain.Enums;
 
 namespace Slush.Infrastructure.Services;
 
@@ -24,6 +25,19 @@ public class LibraryService : ILibraryService
     {
         _uow = uow;
         _badgeService = badgeService;
+    }
+
+    private static CommunityPostType? ParsePostType(string? type)
+    {
+        return type?.Trim().ToLowerInvariant() switch
+        {
+            "discussion" or "discussions" => CommunityPostType.Discussion,
+            "screenshot" or "screenshots" => CommunityPostType.Screenshot,
+            "video" or "videos" => CommunityPostType.Video,
+            "guide" or "guides" => CommunityPostType.Guide,
+            "news" => CommunityPostType.News,
+            _ => null
+        };
     }
 
     public async Task<PagedResultDto<LibraryGameDto>> GetUserLibraryAsync(Guid userId, string? sort, int page, int pageSize)
@@ -303,12 +317,13 @@ public class LibraryService : ILibraryService
             .Select(p => MapToCommunityPostDto(p, userId))
             .ToListAsync();
 
+        var weekAgo = DateTime.UtcNow.AddDays(-7);
         var highlights = await _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
             .Include(p => p.Likes)
-            .Where(p => p.PostType != Domain.Enums.CommunityPostType.News && p.LikesCount > 0)
+            .Where(p => p.PostType != Domain.Enums.CommunityPostType.News && p.LikesCount > 0 && p.CreatedAt >= weekAgo)
             .OrderByDescending(p => p.LikesCount)
-            .Take(10)
+            .Take(5)
             .Select(p => MapToCommunityPostDto(p, userId))
             .ToListAsync();
 
@@ -323,57 +338,77 @@ public class LibraryService : ILibraryService
     }
 
     public async Task<PagedResultDto<CommunityPostDto>> GetLibraryFeedAsync(
-        Guid userId, string source, string type, string sort, int page, int pageSize)
+            Guid userId, string? source, string? type, string? sort, int page, int pageSize)
     {
-        var query = _uow.Repository<CommunityPost>().AsQueryable()
-            .Include(p => p.User)
-            .Include(p => p.Likes)
-            .AsQueryable();
+        var query = _uow.Repository<CommunityPost>().AsQueryable();
 
-        source = source.ToLower();
-        if (source == "subscriptions")
+        source = source?.Trim().ToLowerInvariant() ?? "recommended";
+        switch (source)
         {
-            var subGameIds = await _uow.Repository<GameSubscription>().AsQueryable()
-                .Where(s => s.UserId == userId)
-                .Select(s => s.GameId)
-                .ToListAsync();
-            query = query.Where(p => subGameIds.Contains(p.GameId));
-        }
-        else if (source == "library")
-        {
-            var libGameIds = await _uow.Repository<UserGame>().AsQueryable()
-                .Where(g => g.UserId == userId)
-                .Select(g => g.GameId)
-                .ToListAsync();
-            query = query.Where(p => libGameIds.Contains(p.GameId));
-        }
-        else if (source == "recommended")
-        {
-            var monthAgo = DateTime.UtcNow.AddMonths(-1);
-            query = query.Where(p => p.CreatedAt >= monthAgo);
-            sort = "rating";
+            case "library":
+                var userGameIds = _uow.Repository<UserGame>().AsQueryable()
+                    .Where(ug => ug.UserId == userId)
+                    .Select(ug => ug.GameId);
+                query = query.Where(p => p.GameId != null && userGameIds.Contains(p.GameId));
+                break;
+
+            case "subscriptions":
+                var subGameIds = _uow.Repository<GameSubscription>().AsQueryable()
+                    .Where(s => s.UserId == userId)
+                    .Select(s => s.GameId);
+                break;
+
+            case "recommended":
+                break;
+
+            default:
+                throw new ArgumentException($"Unsupported source option: {source}");
         }
 
-        type = type.ToLower();
-        if (type != "all" && Enum.TryParse(type, true, out Domain.Enums.CommunityPostType parsedType))
+        if (!string.IsNullOrWhiteSpace(type) && !type.Equals("all", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(p => p.PostType == parsedType);
+            var postType = ParsePostType(type);
+            if (postType == null)
+            {
+                throw new ArgumentException($"Unsupported community post type: {type}");
+            }
+            query = query.Where(p => p.PostType == postType.Value);
         }
 
-        query = (sort.ToLower()) switch
+        sort = sort?.Trim().ToLowerInvariant() ?? "popular";
+        query = sort switch
         {
-            "rating" => query.OrderByDescending(p => p.LikesCount).ThenByDescending(p => p.CreatedAt),
-            _ => query.OrderByDescending(p => p.CreatedAt)
+            "popular" or "rating" => query
+                .OrderByDescending(p => p.Likes.Count)
+                .ThenByDescending(p => p.CreatedAt),
+            "newest" => query
+                .OrderByDescending(p => p.CreatedAt),
+            _ => throw new ArgumentException($"Unsupported sort option: {sort}")
         };
 
         var totalCount = await query.CountAsync();
-        var items = await query
+
+        var posts = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(p => MapToCommunityPostDto(p, userId))
+            .Select(p => new CommunityPostDto
+            {
+                Id = p.Id.ToString(),
+                GameId = p.GameId,
+                AuthorUsername = p.User.Username,
+                AuthorAvatarUrl = string.IsNullOrEmpty(p.User.AvatarUrl) ? "https://твой-дефолтный-аватар.com/avatar.png" : p.User.AvatarUrl,
+                PostType = p.PostType.ToString(),
+                IsLiked = p.Likes.Any(l => l.UserId == userId),
+                Title = p.Title,
+                Content = p.Content,
+                MediaUrl = p.MediaUrl,
+                LikesCount = p.Likes.Count,
+                CommentsCount = p.Comments.Count,
+                CreatedAt = p.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+            })
             .ToListAsync();
 
-        return new PagedResultDto<CommunityPostDto>(items, totalCount, page, pageSize);
+        return new PagedResultDto<CommunityPostDto>(posts, totalCount, page, pageSize);
     }
 
     private static CommunityPostDto MapToCommunityPostDto(CommunityPost p, Guid userId) => new()
@@ -693,7 +728,6 @@ public class LibraryService : ILibraryService
             .FirstOrDefaultAsync(g => g.UserId == userId && g.GameId == gameId)
             ?? throw new KeyNotFoundException("Game not found in library.");
 
-        // Идемпотентная остановка: если сессия уже не активна, повторно время не начисляем
         if (!userGame.CurrentSessionStartedAt.HasValue)
         {
             if (user.CurrentGameId == gameId)
