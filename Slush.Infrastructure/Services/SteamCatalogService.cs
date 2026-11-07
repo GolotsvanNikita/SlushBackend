@@ -59,6 +59,14 @@ public class SteamCatalogService : ISteamCatalogService
 
         var data = appElement.GetProperty("data");
 
+        Console.WriteLine($"\n=== STEAM MOVIES ДЛЯ APPID: {appId} ===");
+        Console.WriteLine(
+            data.TryGetProperty("movies", out var debugMovies)
+                ? debugMovies.GetRawText()
+                : "MOVIES PROPERTY NOT FOUND"
+        );
+        Console.WriteLine("=====================================\n");
+
         var result = new UnifiedGameDetailsDto
         {
             Id = appId,
@@ -121,6 +129,16 @@ public class SteamCatalogService : ISteamCatalogService
                 {
                     videoDto.VideoUrlMp4 = mp4Obj.TryGetProperty("max", out var mp4Max) ? mp4Max.GetString() ?? "" :
                                           (mp4Obj.TryGetProperty("480", out var mp4480) ? mp4480.GetString() ?? "" : "");
+                }
+
+                if (string.IsNullOrEmpty(videoDto.VideoUrlMp4) && movie.TryGetProperty("dash_h264", out var dashH264))
+                {
+                    videoDto.VideoUrlMp4 = dashH264.GetString() ?? "";
+                }
+
+                if (string.IsNullOrEmpty(videoDto.VideoUrlWebm) && movie.TryGetProperty("hls_h264", out var hlsH264))
+                {
+                    videoDto.VideoUrlWebm = hlsH264.GetString() ?? "";
                 }
 
                 result.Videos.Add(videoDto);
