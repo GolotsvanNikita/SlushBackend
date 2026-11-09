@@ -41,3 +41,24 @@ public class FriendRequestDto
     public FriendUserDto User { get; set; } = null!;
     public string CreatedAt { get; set; } = string.Empty;
 }
+
+public class BlockedUserDto
+{
+    public Guid UserId { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string AvatarUrl { get; set; } = string.Empty;
+    public string BlockedAt { get; set; } = string.Empty;
+}
+
+public class FriendActivityDto
+{
+    public string Id { get; set; } = string.Empty;
+    public Guid UserId { get; set; }
+    public string Username { get; set; } = string.Empty;
+    public string AvatarUrl { get; set; } = string.Empty;
+    public string ActivityType { get; set; } = string.Empty;
+    public string? GameId { get; set; }
+    public string? GameTitle { get; set; }
+    public string? MediaUrl { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
+}
