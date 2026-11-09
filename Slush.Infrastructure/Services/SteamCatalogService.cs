@@ -388,15 +388,16 @@ public class SteamCatalogService : ISteamCatalogService
         if (!_cache.TryGetValue(cacheKey, out List<SteamNewsItemDto>? allNews) || allNews == null)
         {
             var query = _uow.Repository<UserGame>().AsQueryable()
-                .GroupBy(g => new { g.GameId, g.Title, ImageUrl = g.HeaderImage ?? g.ImageUrl })
+                .GroupBy(g => g.GameId)
                 .Select(g => new
                 {
-                    Game = g.Key,
+                    GameId = g.Key,
+                    Title = g.FirstOrDefault()!.Title,
+                    ImageUrl = g.FirstOrDefault()!.HeaderImage ?? g.FirstOrDefault()!.ImageUrl,
                     Popularity = g.Count()
                 })
                 .OrderByDescending(x => x.Popularity)
-                .Take(15)
-                .Select(x => x.Game);
+                .Take(15);
 
             var catalogGames = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query);
 
@@ -407,7 +408,7 @@ public class SteamCatalogService : ISteamCatalogService
                 ("1091500", "Cyberpunk 2077", "https://cdn.akamai.steamstatic.com/steam/apps/1091500/header.jpg"),
                 ("1086940", "Baldur's Gate 3", "https://cdn.akamai.steamstatic.com/steam/apps/1086940/header.jpg"),
                 ("1245620", "ELDEN RING", "https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg"),
-                ("253980", "HELLDIVERS™ 2", "https://cdn.akamai.steamstatic.com/steam/apps/253980/header.jpg"),
+                ("553850", "HELLDIVERS™ 2", "https://cdn.akamai.steamstatic.com/steam/apps/553850/header.jpg"),
                 ("271590", "Grand Theft Auto V", "https://cdn.akamai.steamstatic.com/steam/apps/271590/header.jpg")
             };
 
@@ -419,7 +420,6 @@ public class SteamCatalogService : ISteamCatalogService
                 .ToList();
 
             var concurrentNews = new ConcurrentBag<SteamNewsItemDto>();
-
             var semaphore = new SemaphoreSlim(4);
 
             var fetchTasks = gamesToFetch.Select(async game =>
@@ -431,6 +431,9 @@ public class SteamCatalogService : ISteamCatalogService
 
                     foreach (var newsItem in gameNews)
                     {
+                        if (string.IsNullOrWhiteSpace(newsItem.Id) || string.IsNullOrWhiteSpace(newsItem.Title))
+                            continue;
+
                         newsItem.GameId = game.GameId;
                         newsItem.GameTitle = game.Title;
                         newsItem.GameImage = game.ImageUrl;

@@ -135,10 +135,13 @@ public class GameCatalogController : ControllerBase
     }
 
     [HttpGet("news")]
-    public async Task<IActionResult> GetAggregatedNews(
+    public async Task<ActionResult<PagedResultDto<SteamNewsItemDto>>> GetAggregatedNews(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 12)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 50);
+
         var result = await _steamService.GetAggregatedNewsAsync(page, pageSize);
         return Ok(result);
     }
