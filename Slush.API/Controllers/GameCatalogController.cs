@@ -125,4 +125,11 @@ public class GameCatalogController : ControllerBase
 
         return Ok(gameData);
     }
+
+    [HttpGet("game/{gameId}/news")]
+    public async Task<IActionResult> GetGameNews(string gameId, [FromQuery] int count = 5)
+    {
+        var news = await _steamService.GetGameNewsAsync(gameId, count);
+        return Ok(news);
+    }
 }

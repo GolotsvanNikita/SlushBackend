@@ -7,4 +7,5 @@ public interface ISteamCatalogService
 {
     Task<UnifiedGameDetailsDto?> GetGameDetailsAsync(string appId);
     Task<PagedResultDto<UnifiedGameDto>> SearchSteamGamesAsync(string query, int page, int pageSize);
+    Task<List<SteamNewsItemDto>> GetGameNewsAsync(string appId, int count = 5);
 }

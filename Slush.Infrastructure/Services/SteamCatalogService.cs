@@ -333,4 +333,43 @@ public class SteamCatalogService : ISteamCatalogService
         var pagedItems = items.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return new PagedResultDto<UnifiedGameDto>(pagedItems, total, page, pageSize);
     }
+
+    public async Task<List<SteamNewsItemDto>> GetGameNewsAsync(string appId, int count = 5)
+    {
+        var result = new List<SteamNewsItemDto>();
+
+        var url = $"https://api.steampowered.com/ISteamNews/GetNewsForApp/v0002/?appid={appId}&count={count}&maxlength=300&format=json";
+
+        var response = await _httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode) return result;
+
+        var jsonString = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(jsonString);
+        var root = document.RootElement;
+
+        if (root.TryGetProperty("appnews", out var appnews) &&
+            appnews.TryGetProperty("newsitems", out var newsitems) &&
+            newsitems.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in newsitems.EnumerateArray())
+            {
+                long unixDate = item.TryGetProperty("date", out var d) ? d.GetInt64() : 0;
+                var dateTime = DateTimeOffset.FromUnixTimeSeconds(unixDate).UtcDateTime;
+
+                result.Add(new SteamNewsItemDto
+                {
+                    Id = item.TryGetProperty("gid", out var gid) ? gid.GetString() ?? "" : "",
+                    Title = item.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "",
+                    Url = item.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "",
+                    Author = item.TryGetProperty("author", out var a) ? a.GetString() ?? "Steam" : "Steam",
+                    Contents = item.TryGetProperty("contents", out var c) ? c.GetString() ?? "" : "",
+                    FeedLabel = item.TryGetProperty("feedlabel", out var f) ? f.GetString() ?? "" : "",
+                    Date = dateTime,
+                    DateFormatted = dateTime.ToString("dd.MM.yyyy")
+                });
+            }
+        }
+
+        return result;
+    }
 }
