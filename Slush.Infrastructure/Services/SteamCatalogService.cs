@@ -1,6 +1,10 @@
-﻿using Slush.Application.DTOs.Catalog;
+﻿using DocumentFormat.OpenXml.Wordprocessing;
+using Microsoft.Extensions.Caching.Memory;
+using Slush.Application.DTOs.Catalog;
 using Slush.Application.DTOs.Common;
 using Slush.Application.Interfaces;
+using Slush.Domain.Entities;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Slush.Infrastructure.Services;
@@ -8,10 +12,14 @@ namespace Slush.Infrastructure.Services;
 public class SteamCatalogService : ISteamCatalogService
 {
     private readonly HttpClient _httpClient;
+    private readonly IUnitOfWork _uow;
+    private readonly IMemoryCache _cache;
 
-    public SteamCatalogService(HttpClient httpClient)
+    public SteamCatalogService(HttpClient httpClient, IUnitOfWork uow, IMemoryCache cache)
     {
         _httpClient = httpClient;
+        _uow = uow;
+        _cache = cache;
     }
 
     public async Task<UnifiedGameDetailsDto?> GetGameDetailsAsync(string appId)
@@ -371,5 +379,93 @@ public class SteamCatalogService : ISteamCatalogService
         }
 
         return result;
+    }
+
+    public async Task<PagedResultDto<SteamNewsItemDto>> GetAggregatedNewsAsync(int page, int pageSize)
+    {
+        var cacheKey = "Slush_AggregatedSteamNews";
+
+        if (!_cache.TryGetValue(cacheKey, out List<SteamNewsItemDto>? allNews) || allNews == null)
+        {
+            var query = _uow.Repository<UserGame>().AsQueryable()
+                .GroupBy(g => new { g.GameId, g.Title, ImageUrl = g.HeaderImage ?? g.ImageUrl })
+                .Select(g => new
+                {
+                    Game = g.Key,
+                    Popularity = g.Count()
+                })
+                .OrderByDescending(x => x.Popularity)
+                .Take(15)
+                .Select(x => x.Game);
+
+            var catalogGames = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query);
+
+            var popularGames = new List<(string GameId, string Title, string ImageUrl)>
+            {
+                ("730", "Counter-Strike 2", "https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg"),
+                ("570", "Dota 2", "https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg"),
+                ("1091500", "Cyberpunk 2077", "https://cdn.akamai.steamstatic.com/steam/apps/1091500/header.jpg"),
+                ("1086940", "Baldur's Gate 3", "https://cdn.akamai.steamstatic.com/steam/apps/1086940/header.jpg"),
+                ("1245620", "ELDEN RING", "https://cdn.akamai.steamstatic.com/steam/apps/1245620/header.jpg"),
+                ("253980", "HELLDIVERS™ 2", "https://cdn.akamai.steamstatic.com/steam/apps/253980/header.jpg"),
+                ("271590", "Grand Theft Auto V", "https://cdn.akamai.steamstatic.com/steam/apps/271590/header.jpg")
+            };
+
+            var gamesToFetch = catalogGames
+                .Select(g => (GameId: g.GameId, Title: g.Title, ImageUrl: g.ImageUrl))
+                .Concat(popularGames)
+                .GroupBy(g => g.GameId)
+                .Select(g => g.First())
+                .ToList();
+
+            var concurrentNews = new ConcurrentBag<SteamNewsItemDto>();
+
+            var semaphore = new SemaphoreSlim(4);
+
+            var fetchTasks = gamesToFetch.Select(async game =>
+            {
+                await semaphore.WaitAsync();
+                try
+                {
+                    var gameNews = await GetGameNewsAsync(game.GameId, 10);
+
+                    foreach (var newsItem in gameNews)
+                    {
+                        newsItem.GameId = game.GameId;
+                        newsItem.GameTitle = game.Title;
+                        newsItem.GameImage = game.ImageUrl;
+
+                        concurrentNews.Add(newsItem);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error fetching news for AppID {game.GameId}: {ex.Message}");
+                }
+                finally
+                {
+                    await Task.Delay(150);
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(fetchTasks);
+
+            allNews = concurrentNews
+                .GroupBy(n => n.Id)
+                .Select(g => g.First())
+                .OrderByDescending(n => n.Date)
+                .ToList();
+
+            _cache.Set(cacheKey, allNews, TimeSpan.FromMinutes(15));
+        }
+
+        var totalCount = allNews.Count;
+        var pagedItems = allNews
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PagedResultDto<SteamNewsItemDto>(pagedItems, totalCount, page, pageSize);
     }
 }

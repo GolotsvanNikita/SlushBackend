@@ -5,6 +5,7 @@ using Slush.Application.DTOs.Common;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
 using Slush.Domain.Enums;
+using Slush.Infrastructure.Services;
 using System.Security.Claims;
 
 namespace Slush.API.Controllers;
@@ -131,5 +132,14 @@ public class GameCatalogController : ControllerBase
     {
         var news = await _steamService.GetGameNewsAsync(gameId, count);
         return Ok(news);
+    }
+
+    [HttpGet("news")]
+    public async Task<IActionResult> GetAggregatedNews(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12)
+    {
+        var result = await _steamService.GetAggregatedNewsAsync(page, pageSize);
+        return Ok(result);
     }
 }

@@ -10,4 +10,8 @@ public class SteamNewsItemDto
     public string FeedLabel { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public string DateFormatted { get; set; } = string.Empty;
+
+    public string GameId { get; set; } = string.Empty;
+    public string GameTitle { get; set; } = string.Empty;
+    public string GameImage { get; set; } = string.Empty;
 }
