@@ -4,6 +4,7 @@ namespace Slush.Application.DTOs.Profile;
 
 public class ProfileReviewDto
 {
+    public string Id { get; set; } = string.Empty;
     public string GameId { get; set; } = string.Empty;
     public string GameTitle { get; set; } = string.Empty;
     public string GameBannerUrl { get; set; } = string.Empty;
@@ -16,6 +17,8 @@ public class ProfileReviewDto
 
 public class ProfileGuideDto
 {
+    public string Id { get; set; } = string.Empty;
+    public string GameId { get; set; } = string.Empty;
     public string GameTitle { get; set; } = string.Empty;
     public string GuideTitle { get; set; } = string.Empty;
     public string TextSnippet { get; set; } = string.Empty;
@@ -44,14 +47,22 @@ public class ProfileGameDto
 public class ProfilePostDto
 {
     public string Id { get; set; } = string.Empty;
-    public string Title { get; set; } = string.Empty;
-    public string Text { get; set; } = string.Empty;
-    public string ImageUrl { get; set; } = string.Empty;
     public string AuthorUsername { get; set; } = string.Empty;
     public string AuthorAvatarUrl { get; set; } = string.Empty;
-    public string CreatedAt { get; set; } = string.Empty;
+
+    public string PostType { get; set; } = string.Empty;
+    public bool IsLiked { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string ShortDescription { get; set; } = string.Empty;
+    public string? MediaUrl { get; set; }
+
+    public string Text { get; set; } = string.Empty;
+    public string ImageUrl { get; set; } = string.Empty;
+
     public int LikesCount { get; set; }
     public int CommentsCount { get; set; }
+    public string CreatedAt { get; set; } = string.Empty;
 }
 
 public class ProfileScreenshotDto

@@ -2,9 +2,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Slush.Application.DTOs.Common;
 using Slush.Application.DTOs.Profile;
+using Slush.Application.DTOs.Store;
 using Slush.Application.Interfaces;
 using Slush.Domain.Entities;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+
 namespace Slush.API.Controllers;
 
 [ApiController]
@@ -20,18 +23,23 @@ public class UserProfileController : ControllerBase
         _uow = uow;
     }
 
+    private Guid? GetViewerUserIdOrNull()
+    {
+        var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                           ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(userIdString, out var userId) ? userId : null;
+    }
+
     [HttpPut("settings")]
     [Authorize]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileDto request)
     {
-        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (!Guid.TryParse(userIdString, out Guid userId))
+        var userId = GetViewerUserIdOrNull();
+        if (!userId.HasValue)
             return Unauthorized();
 
         var userRepo = _uow.Repository<User>();
-        var user = await userRepo.GetByIdAsync(userId);
+        var user = await userRepo.GetByIdAsync(userId.Value);
 
         if (user == null)
             return NotFound(new { message = "User not found." });
@@ -71,50 +79,84 @@ public class UserProfileController : ControllerBase
         return Ok(profile);
     }
 
+    [HttpGet("{username}/wishlist")]
+    public async Task<ActionResult<PagedResultDto<StoreItemDto>>> GetWishlist(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 12)
+    {
+        var result = await _profileService.GetProfileWishlistAsync(username, page, pageSize);
+        return Ok(result);
+    }
+
     [HttpGet("{username}/comments")]
-    public async Task<ActionResult<PagedResultDto<ProfileCommentDto>>> GetComments(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultDto<ProfileCommentDto>>> GetComments(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         var result = await _profileService.GetProfileCommentsAsync(username, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/reviews")]
-    public async Task<ActionResult<PagedResultDto<ProfileReviewDto>>> GetReviews(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
+    public async Task<ActionResult<PagedResultDto<ProfileReviewDto>>> GetReviews(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 5)
     {
         var result = await _profileService.GetProfileReviewsAsync(username, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/guides")]
-    public async Task<ActionResult<PagedResultDto<ProfileGuideDto>>> GetGuides(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
+    public async Task<ActionResult<PagedResultDto<ProfileGuideDto>>> GetGuides(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 5)
     {
         var result = await _profileService.GetProfileGuidesAsync(username, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/games")]
-    public async Task<ActionResult<PagedResultDto<ProfileGameDto>>> GetGames(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultDto<ProfileGameDto>>> GetGames(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         var result = await _profileService.GetProfileGamesAsync(username, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/posts")]
-    public async Task<ActionResult<PagedResultDto<ProfilePostDto>>> GetPosts(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultDto<ProfilePostDto>>> GetPosts(
+        string username,
+        [FromQuery] string? type = "Discussion",
+        [FromQuery] string? sort = "Newest",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
-        var result = await _profileService.GetProfilePostsAsync(username, page, pageSize);
+        var result = await _profileService.GetProfilePostsAsync(
+            username, GetViewerUserIdOrNull(), type, sort, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/screenshots")]
-    public async Task<ActionResult<PagedResultDto<ProfileScreenshotDto>>> GetScreenshots(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultDto<ProfileScreenshotDto>>> GetScreenshots(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         var result = await _profileService.GetProfileScreenshotsAsync(username, page, pageSize);
         return Ok(result);
     }
 
     [HttpGet("{username}/videos")]
-    public async Task<ActionResult<PagedResultDto<ProfileVideoDto>>> GetVideos(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<ActionResult<PagedResultDto<ProfileVideoDto>>> GetVideos(
+        string username,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
         var result = await _profileService.GetProfileVideosAsync(username, page, pageSize);
         return Ok(result);
