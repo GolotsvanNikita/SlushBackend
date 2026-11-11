@@ -161,4 +161,38 @@ public class UserProfileController : ControllerBase
         var result = await _profileService.GetProfileVideosAsync(username, page, pageSize);
         return Ok(result);
     }
+
+    [HttpPost("{username}/comments")]
+    [Authorize]
+    public async Task<ActionResult<ProfileCommentDto>> AddComment(
+    string username,
+    [FromBody] CreateProfileCommentDto request)
+    {
+        var userId = GetViewerUserIdOrNull();
+        if (!userId.HasValue) return Unauthorized();
+
+        try
+        {
+            var comment = await _profileService.AddProfileCommentAsync(userId.Value, username, request.Text);
+            return Ok(comment);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
+    [HttpDelete("comments/{commentId}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteComment(Guid commentId)
+    {
+        var userId = GetViewerUserIdOrNull();
+        if (!userId.HasValue) return Unauthorized();
+
+        try
+        {
+            await _profileService.DeleteProfileCommentAsync(userId.Value, commentId);
+            return Ok(new { message = "Comment deleted successfully." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (UnauthorizedAccessException ex) { return StatusCode(403, new { message = ex.Message }); }
+    }
 }

@@ -165,6 +165,7 @@ public class ProfileService : IProfileService
             .Select(c => new ProfileCommentDto
             {
                 Id = c.Id.ToString(),
+                AuthorId = c.AuthorId,
                 AuthorUsername = c.Author.Username,
                 AuthorAvatarUrl = c.Author.AvatarUrl,
                 Text = c.Text,
@@ -383,5 +384,57 @@ public class ProfileService : IProfileService
             }).ToListAsync();
 
         return new PagedResultDto<ProfileGuideDto>(items, totalCount, page, pageSize);
+    }
+
+    public async Task<ProfileCommentDto> AddProfileCommentAsync(Guid authorUserId, string targetUsername, string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            throw new ArgumentException("Текст коментаря не може бути порожнім.");
+
+        var normalizedTarget = targetUsername.Trim().ToLower();
+        var targetUser = await _uow.Repository<User>().AsQueryable()
+            .FirstOrDefaultAsync(u => !u.IsDeleted && u.Username.ToLower() == normalizedTarget)
+            ?? throw new KeyNotFoundException("Профіль користувача не знайдено.");
+
+        var author = await _uow.Repository<User>().GetByIdAsync(authorUserId)
+            ?? throw new KeyNotFoundException("Автора не знайдено.");
+
+        var comment = new ProfileComment
+        {
+            ProfileUserId = targetUser.Id,
+            AuthorId = author.Id,
+            Text = text.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _uow.Repository<ProfileComment>().AddAsync(comment);
+        await _uow.SaveChangesAsync();
+
+        return new ProfileCommentDto
+        {
+            Id = comment.Id.ToString(),
+            AuthorId = author.Id,
+            AuthorUsername = author.Username,
+            AuthorAvatarUrl = author.AvatarUrl ?? string.Empty,
+            Text = comment.Text,
+            CreatedAt = comment.CreatedAt.ToString("dd.MM.yyyy")
+        };
+    }
+
+    public async Task DeleteProfileCommentAsync(Guid requesterUserId, Guid commentId)
+    {
+        var commentRepo = _uow.Repository<ProfileComment>();
+        var comment = await commentRepo.AsQueryable()
+            .FirstOrDefaultAsync(c => c.Id == commentId)
+            ?? throw new KeyNotFoundException("Коментар не знайдено.");
+
+        bool isCommentAuthor = comment.AuthorId == requesterUserId;
+        bool isProfileOwner = comment.ProfileUserId == requesterUserId;
+
+        if (!isCommentAuthor && !isProfileOwner)
+            throw new UnauthorizedAccessException("Ви не маєте прав на видалення цього коментаря.");
+
+        commentRepo.Remove(comment);
+        await _uow.SaveChangesAsync();
     }
 }

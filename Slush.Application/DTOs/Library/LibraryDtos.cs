@@ -29,12 +29,15 @@ public class LibraryCollectionDto
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public int GamesCount { get; set; }
-    public string CreatedAt { get; set; } = string.Empty;
+    public List<string> CoverUrls { get; set; } = [];
+    public DateTime CreatedAt { get; set; }
+    public List<LibraryGameDto> Games { get; set; } = [];
 }
 
 public class SaveCollectionRequestDto
 {
     public string Name { get; set; } = string.Empty;
+    public List<string>? GameIds { get; set; }
 }
 
 public class LibraryHomeDto

@@ -42,6 +42,9 @@ public class LibraryService : ILibraryService
 
     public async Task<PagedResultDto<LibraryGameDto>> GetUserLibraryAsync(Guid userId, string? sort, int page, int pageSize)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var query = _uow.Repository<UserGame>().AsQueryable()
             .Where(g => g.UserId == userId);
 
@@ -49,27 +52,29 @@ public class LibraryService : ILibraryService
         {
             "title" or "alphabetical" => query.OrderBy(g => g.Title),
             "favorites" => query.OrderByDescending(g => g.IsFavorite).ThenByDescending(g => g.AcquiredAt),
-            _ => query.OrderByDescending(g => g.AcquiredAt)
+            _ => query.OrderByDescending(g => g.LastPlayedAt ?? g.AcquiredAt)
         };
 
         var totalCount = await query.CountAsync();
 
-        var items = await query
+        var entities = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(g => MapToLibraryGameDto(g))
             .ToListAsync();
+
+        var items = entities.Select(MapToLibraryGameDto).ToList();
 
         return new PagedResultDto<LibraryGameDto>(items, totalCount, page, pageSize);
     }
 
     public async Task<List<LibraryGameDto>> GetFavoritesAsync(Guid userId)
     {
-        return await _uow.Repository<UserGame>().AsQueryable()
+        var entities = await _uow.Repository<UserGame>().AsQueryable()
             .Where(g => g.UserId == userId && g.IsFavorite)
             .OrderBy(g => g.Title)
-            .Select(g => MapToLibraryGameDto(g))
             .ToListAsync();
+
+        return entities.Select(MapToLibraryGameDto).ToList();
     }
 
     public async Task AddToFavoritesAsync(Guid userId, string gameId)
@@ -82,7 +87,7 @@ public class LibraryService : ILibraryService
             throw new KeyNotFoundException("Game not found in your library.");
 
         if (userGame.IsFavorite)
-            throw new InvalidOperationException("Game is already in favorites.");
+            return;
 
         userGame.IsFavorite = true;
         repo.Update(userGame);
@@ -98,28 +103,42 @@ public class LibraryService : ILibraryService
         if (userGame == null)
             throw new KeyNotFoundException("Game not found in your library.");
 
+        if (!userGame.IsFavorite)
+            return;
+
         userGame.IsFavorite = false;
         repo.Update(userGame);
         await _uow.SaveChangesAsync();
     }
 
-    public async Task<List<LibraryCollectionDto>> GetCollectionsAsync(Guid userId)
+    public async Task<bool> ToggleFavoriteAsync(Guid userId, string gameId)
     {
-        return await _uow.Repository<LibraryCollection>().AsQueryable()
-            .Include(c => c.Games)
-            .Where(c => c.UserId == userId)
-            .OrderBy(c => c.CreatedAt)
-            .Select(c => new LibraryCollectionDto
-            {
-                Id = c.Id,
-                Name = c.Name,
-                GamesCount = c.Games.Count,
-                CreatedAt = c.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
-            })
-            .ToListAsync();
+        var repo = _uow.Repository<UserGame>();
+        var userGame = await repo.AsQueryable()
+            .FirstOrDefaultAsync(g => g.UserId == userId && g.GameId == gameId);
+
+        if (userGame == null)
+            throw new KeyNotFoundException("Game not found in your library.");
+
+        userGame.IsFavorite = !userGame.IsFavorite;
+        repo.Update(userGame);
+        await _uow.SaveChangesAsync();
+
+        return userGame.IsFavorite;
     }
 
-    public async Task<LibraryCollectionDto> CreateCollectionAsync(Guid userId, string name)
+    public async Task<List<LibraryCollectionDto>> GetCollectionsAsync(Guid userId)
+    {
+        var collections = await _uow.Repository<LibraryCollection>().AsQueryable()
+            .Include(c => c.Games)
+            .Where(c => c.UserId == userId)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+
+        return collections.Select(MapToCollectionDto).ToList();
+    }
+
+    public async Task<LibraryCollectionDto> CreateCollectionAsync(Guid userId, string name, List<string>? gameIds = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Collection name cannot be empty.");
@@ -141,18 +160,30 @@ public class LibraryService : ILibraryService
         };
 
         await repo.AddAsync(collection);
+
+        if (gameIds != null && gameIds.Any())
+        {
+            var distinctIds = gameIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()).Distinct().ToList();
+            var gameRepo = _uow.Repository<UserGame>();
+
+            var gamesToAssign = await gameRepo.AsQueryable()
+                .Where(g => g.UserId == userId && distinctIds.Contains(g.GameId))
+                .ToListAsync();
+
+            foreach (var game in gamesToAssign)
+            {
+                game.CollectionId = collection.Id;
+                gameRepo.Update(game);
+                collection.Games.Add(game);
+            }
+        }
+
         await _uow.SaveChangesAsync();
 
-        return new LibraryCollectionDto
-        {
-            Id = collection.Id,
-            Name = collection.Name,
-            GamesCount = 0,
-            CreatedAt = collection.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        };
+        return MapToCollectionDto(collection);
     }
 
-    public async Task<LibraryCollectionDto> RenameCollectionAsync(Guid userId, Guid collectionId, string newName)
+    public async Task<LibraryCollectionDto> RenameCollectionAsync(Guid userId, Guid collectionId, string newName, List<string>? gameIds = null)
     {
         if (string.IsNullOrWhiteSpace(newName))
             throw new ArgumentException("Collection name cannot be empty.");
@@ -178,27 +209,58 @@ public class LibraryService : ILibraryService
 
         collection.Name = trimmedName;
         repo.Update(collection);
+
+        if (gameIds != null)
+        {
+            var distinctIds = gameIds.Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id.Trim()).Distinct().ToHashSet();
+            var gameRepo = _uow.Repository<UserGame>();
+
+            var relevantGames = await gameRepo.AsQueryable()
+                .Where(g => g.UserId == userId && (g.CollectionId == collectionId || distinctIds.Contains(g.GameId)))
+                .ToListAsync();
+
+            collection.Games.Clear();
+
+            foreach (var game in relevantGames)
+            {
+                if (distinctIds.Contains(game.GameId))
+                {
+                    game.CollectionId = collectionId;
+                    collection.Games.Add(game);
+                }
+                else if (game.CollectionId == collectionId)
+                {
+                    game.CollectionId = null;
+                }
+
+                gameRepo.Update(game);
+            }
+        }
+
         await _uow.SaveChangesAsync();
 
-        return new LibraryCollectionDto
-        {
-            Id = collection.Id,
-            Name = collection.Name,
-            GamesCount = collection.Games.Count,
-            CreatedAt = collection.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        };
+        return MapToCollectionDto(collection);
     }
 
     public async Task DeleteCollectionAsync(Guid userId, Guid collectionId)
     {
         var repo = _uow.Repository<LibraryCollection>();
-        var collection = await repo.GetByIdAsync(collectionId);
+        var collection = await repo.AsQueryable()
+            .Include(c => c.Games)
+            .FirstOrDefaultAsync(c => c.Id == collectionId);
 
         if (collection == null)
             throw new KeyNotFoundException("Collection not found.");
 
         if (collection.UserId != userId)
             throw new UnauthorizedAccessException("You do not have permission to delete this collection.");
+
+        var gameRepo = _uow.Repository<UserGame>();
+        foreach (var game in collection.Games)
+        {
+            game.CollectionId = null;
+            gameRepo.Update(game);
+        }
 
         repo.Remove(collection);
         await _uow.SaveChangesAsync();
@@ -221,7 +283,7 @@ public class LibraryService : ILibraryService
             throw new KeyNotFoundException("Game not found in your library.");
 
         if (userGame.CollectionId == collectionId)
-            throw new InvalidOperationException("Game is already in this collection.");
+            return;
 
         userGame.CollectionId = collectionId;
         gameRepo.Update(userGame);
@@ -258,11 +320,36 @@ public class LibraryService : ILibraryService
         if (collection.UserId != userId)
             throw new UnauthorizedAccessException("You do not have permission to view this collection.");
 
-        return await _uow.Repository<UserGame>().AsQueryable()
+        var entities = await _uow.Repository<UserGame>().AsQueryable()
             .Where(g => g.UserId == userId && g.CollectionId == collectionId)
             .OrderBy(g => g.Title)
-            .Select(g => MapToLibraryGameDto(g))
             .ToListAsync();
+
+        return entities.Select(MapToLibraryGameDto).ToList();
+    }
+
+    private static LibraryCollectionDto MapToCollectionDto(LibraryCollection c)
+    {
+        var mappedGames = (c.Games ?? [])
+            .OrderBy(g => g.Title)
+            .Select(MapToLibraryGameDto)
+            .ToList();
+
+        var covers = mappedGames
+            .Select(g => !string.IsNullOrWhiteSpace(g.HeaderImage) ? g.HeaderImage! : g.CoverImage)
+            .Where(url => !string.IsNullOrWhiteSpace(url))
+            .Take(4)
+            .ToList();
+
+        return new LibraryCollectionDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            GamesCount = mappedGames.Count,
+            CoverUrls = covers,
+            CreatedAt = c.CreatedAt,
+            Games = mappedGames
+        };
     }
 
     private static LibraryGameDto MapToLibraryGameDto(UserGame g) => new()
@@ -276,7 +363,7 @@ public class LibraryService : ILibraryService
         DiskSize = g.DiskSize ?? "Браузерний клієнт",
         IsFavorite = g.IsFavorite,
         CollectionId = g.CollectionId,
-        IsInstalled = true,
+        IsInstalled = g.IsInstalled ?? true,
         AcquiredAt = g.AcquiredAt.ToString("yyyy-MM-ddTHH:mm:ssZ"),
         PlaytimeMinutes = g.PlaytimeMinutes,
         PlaytimeHours = Math.Round(g.PlaytimeMinutes / 60.0, 1),
@@ -306,29 +393,31 @@ public class LibraryService : ILibraryService
         var newsQuery = _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
             .Include(p => p.Likes)
-            .Where(p => p.PostType == Domain.Enums.CommunityPostType.News);
+            .Where(p => p.PostType == CommunityPostType.News);
 
         if (userGameIds.Any())
             newsQuery = newsQuery.Where(p => userGameIds.Contains(p.GameId));
 
-        var latestNews = await newsQuery
+        var latestNewsEntities = await newsQuery
             .OrderByDescending(p => p.CreatedAt)
             .Take(5)
-            .Select(p => MapToCommunityPostDto(p, userId))
             .ToListAsync();
 
+        var latestNews = latestNewsEntities.Select(p => MapToCommunityPostDto(p, userId)).ToList();
+
         var weekAgo = DateTime.UtcNow.AddDays(-7);
-        var highlights = await _uow.Repository<CommunityPost>().AsQueryable()
+        var highlightEntities = await _uow.Repository<CommunityPost>().AsQueryable()
             .Include(p => p.User)
             .Include(p => p.Likes)
             .Where(p =>
-                p.PostType != Domain.Enums.CommunityPostType.News &&
+                p.PostType != CommunityPostType.News &&
                 p.CreatedAt >= weekAgo)
             .OrderByDescending(p => p.LikesCount)
             .ThenByDescending(p => p.CreatedAt)
             .Take(5)
-            .Select(p => MapToCommunityPostDto(p, userId))
             .ToListAsync();
+
+        var highlights = highlightEntities.Select(p => MapToCommunityPostDto(p, userId)).ToList();
 
         return new LibraryHomeDto
         {
@@ -359,6 +448,7 @@ public class LibraryService : ILibraryService
                 var subGameIds = _uow.Repository<GameSubscription>().AsQueryable()
                     .Where(s => s.UserId == userId)
                     .Select(s => s.GameId);
+                query = query.Where(p => p.GameId != null && subGameIds.Contains(p.GameId));
                 break;
 
             case "recommended":
@@ -399,7 +489,7 @@ public class LibraryService : ILibraryService
                 Id = p.Id.ToString(),
                 GameId = p.GameId,
                 AuthorUsername = p.User.Username,
-                AuthorAvatarUrl = string.IsNullOrEmpty(p.User.AvatarUrl) ? "https://твой-дефолтный-аватар.com/avatar.png" : p.User.AvatarUrl,
+                AuthorAvatarUrl = string.IsNullOrEmpty(p.User.AvatarUrl) ? string.Empty : p.User.AvatarUrl,
                 PostType = p.PostType.ToString(),
                 IsLiked = p.Likes.Any(l => l.UserId == userId),
                 Title = p.Title,
@@ -461,6 +551,7 @@ public class LibraryService : ILibraryService
                     UserId = ug.User.Id,
                     Username = ug.User.Username,
                     AvatarUrl = ug.User.AvatarUrl,
+                    Level = ug.User.Level,
                     LastSeenAt = ug.User.LastSeenAt,
                     IsOnline = ug.User.LastSeenAt.HasValue && ug.User.LastSeenAt.Value >= onlineCutoff,
                     CurrentGameId = ug.User.LastSeenAt.HasValue && ug.User.LastSeenAt.Value >= onlineCutoff ? ug.User.CurrentGameId : null,
@@ -476,6 +567,7 @@ public class LibraryService : ILibraryService
                     UserId = w.User.Id,
                     Username = w.User.Username,
                     AvatarUrl = w.User.AvatarUrl,
+                    Level = w.User.Level,
                     LastSeenAt = w.User.LastSeenAt,
                     IsOnline = w.User.LastSeenAt.HasValue && w.User.LastSeenAt.Value >= onlineCutoff,
                     CurrentGameId = w.User.LastSeenAt.HasValue && w.User.LastSeenAt.Value >= onlineCutoff ? w.User.CurrentGameId : null,
@@ -843,7 +935,7 @@ public class LibraryService : ILibraryService
     {
         return await _uow.Repository<FriendRequest>().AsQueryable()
             .Where(r => (r.SenderId == userId || r.ReceiverId == userId)
-                        && r.Status == Domain.Enums.FriendRequestStatus.Accepted)
+                        && r.Status == FriendRequestStatus.Accepted)
             .Select(r => r.SenderId == userId ? r.ReceiverId : r.SenderId)
             .ToListAsync();
     }
@@ -859,8 +951,6 @@ public class LibraryService : ILibraryService
     {
         var playUrl = isPlaying ? DefaultBrowserGameUrl : string.Empty;
 
-        bool canEmbed = true;
-
         return new GameSessionDto
         {
             GameId = userGame.GameId,
@@ -868,7 +958,7 @@ public class LibraryService : ILibraryService
             CoverImage = userGame.ImageUrl,
             IsPlaying = isPlaying,
             PlayUrl = playUrl,
-            CanEmbedInIframe = canEmbed,
+            CanEmbedInIframe = true,
             SessionStartedAt = userGame.CurrentSessionStartedAt,
             TotalPlaytimeMinutes = userGame.PlaytimeMinutes,
             TotalPlaytimeHours = Math.Round(userGame.PlaytimeMinutes / 60.0, 1),

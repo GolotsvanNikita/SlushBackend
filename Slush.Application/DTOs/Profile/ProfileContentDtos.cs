@@ -30,10 +30,16 @@ public class ProfileGuideDto
 public class ProfileCommentDto
 {
     public string Id { get; set; } = string.Empty;
+    public Guid AuthorId { get; set; }
     public string AuthorUsername { get; set; } = string.Empty;
     public string AuthorAvatarUrl { get; set; } = string.Empty;
     public string Text { get; set; } = string.Empty;
     public string CreatedAt { get; set; } = string.Empty;
+}
+
+public class CreateProfileCommentDto
+{
+    public string Text { get; set; } = string.Empty;
 }
 
 public class ProfileGameDto

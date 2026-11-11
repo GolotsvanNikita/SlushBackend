@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using Slush.API.Hubs;
 using Slush.Application.DTOs.Library;
 using Slush.Application.Interfaces;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace Slush.API.Controllers;
@@ -24,7 +25,7 @@ public class LibraryController : ControllerBase
 
     private Guid GetUserId()
     {
-        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+        var userIdString = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
                            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(userIdString, out var userId) ? userId : Guid.Empty;
     }
@@ -52,7 +53,7 @@ public class LibraryController : ControllerBase
         try
         {
             await _libraryService.AddToFavoritesAsync(GetUserId(), gameId);
-            return Ok(new { message = "Game added to favorites." });
+            return Ok(new { message = "Game added to favorites.", isFavorite = true });
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
@@ -64,7 +65,22 @@ public class LibraryController : ControllerBase
         try
         {
             await _libraryService.RemoveFromFavoritesAsync(GetUserId(), gameId);
-            return Ok(new { message = "Game removed from favorites." });
+            return Ok(new { message = "Game removed from favorites.", isFavorite = false });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
+    [HttpPost("{gameId}/favorite/toggle")]
+    public async Task<IActionResult> ToggleFavorite(string gameId)
+    {
+        try
+        {
+            var isFavorite = await _libraryService.ToggleFavoriteAsync(GetUserId(), gameId);
+            return Ok(new
+            {
+                isFavorite,
+                message = isFavorite ? "Game added to favorites." : "Game removed from favorites."
+            });
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
     }
@@ -81,7 +97,7 @@ public class LibraryController : ControllerBase
     {
         try
         {
-            var result = await _libraryService.CreateCollectionAsync(GetUserId(), request.Name);
+            var result = await _libraryService.CreateCollectionAsync(GetUserId(), request.Name, request.GameIds);
             return Ok(result);
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
@@ -93,7 +109,7 @@ public class LibraryController : ControllerBase
     {
         try
         {
-            var result = await _libraryService.RenameCollectionAsync(GetUserId(), collectionId, request.Name);
+            var result = await _libraryService.RenameCollectionAsync(GetUserId(), collectionId, request.Name, request.GameIds);
             return Ok(result);
         }
         catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }

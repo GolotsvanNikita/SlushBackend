@@ -21,4 +21,7 @@ public interface IProfileService
         int pageSize);
     Task<PagedResultDto<ProfileScreenshotDto>> GetProfileScreenshotsAsync(string username, int page, int pageSize);
     Task<PagedResultDto<ProfileVideoDto>> GetProfileVideosAsync(string username, int page, int pageSize);
+
+    Task<ProfileCommentDto> AddProfileCommentAsync(Guid authorUserId, string targetUsername, string text);
+    Task DeleteProfileCommentAsync(Guid requesterUserId, Guid commentId);
 }

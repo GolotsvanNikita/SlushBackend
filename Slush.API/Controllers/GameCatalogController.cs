@@ -77,7 +77,10 @@ public class GameCatalogController : ControllerBase
             gameData.AverageRating = Math.Round(gameReviews.Average(r => r.Score), 1);
             gameData.Reviews = gameReviews.Select(r => new GameReviewDto
             {
+                Id = r.Id,
+                UserId = r.UserId,
                 Username = r.User.Username,
+                AvatarUrl = r.User.AvatarUrl ?? string.Empty,
                 Score = r.Score,
                 Text = r.Text,
                 Date = r.CreatedAt.ToString("yyyy-MM-dd")
@@ -144,5 +147,103 @@ public class GameCatalogController : ControllerBase
 
         var result = await _steamService.GetAggregatedNewsAsync(page, pageSize);
         return Ok(result);
+    }
+
+    [HttpPost("{appId}/reviews")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<ActionResult<GameReviewDto>> UpsertGameReview(
+    string appId,
+    [FromBody] CreateCatalogReviewDto request)
+    {
+        var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                          ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(userIdClaim, out Guid userId))
+            return Unauthorized();
+
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { message = "Текст рецензії не може бути порожнім." });
+
+        var score = Math.Clamp(request.Score, 1, 10);
+
+        var user = await _uow.Repository<User>().GetByIdAsync(userId);
+        if (user == null || user.IsDeleted)
+            return Unauthorized();
+
+        var userGame = await _uow.Repository<UserGame>().AsQueryable()
+            .FirstOrDefaultAsync(ug => ug.UserId == userId && ug.GameId == appId);
+
+        string gameTitle = userGame?.Title ?? string.Empty;
+        string gameBanner = userGame?.HeaderImage ?? userGame?.ImageUrl ?? $"https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg";
+
+        if (string.IsNullOrWhiteSpace(gameTitle))
+        {
+            var steamDetails = await _steamService.GetGameDetailsAsync(appId);
+            gameTitle = steamDetails?.Title ?? $"Game {appId}";
+        }
+
+        var reviewRepo = _uow.Repository<GameReview>();
+        var existingReview = await reviewRepo.AsQueryable()
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.GameId == appId);
+
+        if (existingReview != null)
+        {
+            existingReview.Score = score;
+            existingReview.Text = request.Text.Trim();
+            existingReview.GameTitle = gameTitle;
+            existingReview.GameBannerUrl = gameBanner;
+            existingReview.CreatedAt = DateTime.UtcNow;
+            reviewRepo.Update(existingReview);
+        }
+        else
+        {
+            existingReview = new GameReview
+            {
+                UserId = userId,
+                GameId = appId,
+                GameTitle = gameTitle,
+                GameBannerUrl = gameBanner,
+                Score = score,
+                Text = request.Text.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+            await reviewRepo.AddAsync(existingReview);
+        }
+
+        await _uow.SaveChangesAsync();
+
+        return Ok(new GameReviewDto
+        {
+            Id = existingReview.Id,
+            UserId = user.Id,
+            Username = user.Username,
+            AvatarUrl = user.AvatarUrl ?? string.Empty,
+            Score = existingReview.Score,
+            Text = existingReview.Text,
+            Date = existingReview.CreatedAt.ToString("yyyy-MM-dd")
+        });
+    }
+
+    [HttpDelete("{appId}/reviews")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    public async Task<IActionResult> DeleteGameReview(string appId)
+    {
+        var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
+                          ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(userIdClaim, out Guid userId))
+            return Unauthorized();
+
+        var reviewRepo = _uow.Repository<GameReview>();
+        var existingReview = await reviewRepo.AsQueryable()
+            .FirstOrDefaultAsync(r => r.UserId == userId && r.GameId == appId);
+
+        if (existingReview == null)
+            return NotFound(new { message = "Рецензію не знайдено." });
+
+        reviewRepo.Remove(existingReview);
+        await _uow.SaveChangesAsync();
+
+        return Ok(new { message = "Рецензію видалено." });
     }
 }

@@ -33,7 +33,10 @@ public class UnifiedGameDetailsDto
 
 public class GameReviewDto
 {
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
     public string Username { get; set; } = string.Empty;
+    public string AvatarUrl { get; set; } = string.Empty;
     public int Score { get; set; }
     public string Text { get; set; } = string.Empty;
     public string Date { get; set; } = string.Empty;
@@ -52,6 +55,12 @@ public class GameVideoDto
     public string ThumbnailUrl { get; set; } = string.Empty;
     public string VideoUrlWebm { get; set; } = string.Empty;
     public string VideoUrlMp4 { get; set; } = string.Empty;
+}
+
+public class CreateCatalogReviewDto
+{
+    public int Score { get; set; }
+    public string Text { get; set; } = string.Empty;
 }
 
 public class FriendPlayingDto
