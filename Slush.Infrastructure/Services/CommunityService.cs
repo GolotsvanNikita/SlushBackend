@@ -70,6 +70,30 @@ public class CommunityService : ICommunityService
         return new PagedResultDto<CommunityPostDto>(posts, totalCount, page, pageSize);
     }
 
+    public async Task<CommunityPostDto?> GetPostByIdAsync(Guid postId, Guid? currentUserId = null)
+    {
+        return await _uow.Repository<CommunityPost>().AsQueryable()
+            .Include(p => p.User)
+            .Where(p => p.Id == postId)
+            .Select(p => new CommunityPostDto
+            {
+                Id = p.Id.ToString(),
+                GameId = p.GameId,
+                AuthorUsername = p.User.Username,
+                AuthorAvatarUrl = p.User.AvatarUrl,
+                PostType = p.PostType.ToString(),
+                Title = p.Title,
+                Content = p.Content,
+                ShortDescription = p.ShortDescription,
+                MediaUrl = p.MediaUrl,
+                LikesCount = p.LikesCount,
+                CommentsCount = p.CommentsCount,
+                IsLiked = currentUserId.HasValue && p.Likes.Any(l => l.UserId == currentUserId.Value),
+                CreatedAt = p.CreatedAt.ToString("dd.MM.yyyy")
+            })
+            .FirstOrDefaultAsync();
+    }
+
     public async Task<CommunityPostDto> CreatePostAsync(Guid userId, CreateCommunityPostDto request)
     {
         var post = new CommunityPost
@@ -93,6 +117,7 @@ public class CommunityService : ICommunityService
         return new CommunityPostDto
         {
             Id = post.Id.ToString(),
+            GameId = post.GameId,
             AuthorUsername = user!.Username,
             AuthorAvatarUrl = user.AvatarUrl,
             PostType = post.PostType.ToString(),
@@ -102,6 +127,7 @@ public class CommunityService : ICommunityService
             MediaUrl = post.MediaUrl,
             LikesCount = post.LikesCount,
             CommentsCount = post.CommentsCount,
+            IsLiked = false,
             CreatedAt = post.CreatedAt.ToString("dd.MM.yyyy")
         };
     }
@@ -110,7 +136,7 @@ public class CommunityService : ICommunityService
     {
         var postRepo = _uow.Repository<CommunityPost>();
         var post = await postRepo.GetByIdAsync(postId);
-        if (post == null) throw new Exception("Post not found.");
+        if (post == null) throw new KeyNotFoundException("Post not found.");
 
         var likeRepo = _uow.Repository<PostLike>();
         var existingLike = await likeRepo.AsQueryable()
@@ -124,7 +150,7 @@ public class CommunityService : ICommunityService
         else
         {
             likeRepo.Remove(existingLike);
-            post.LikesCount--;
+            post.LikesCount = Math.Max(0, post.LikesCount - 1);
         }
 
         postRepo.Update(post);
@@ -134,7 +160,7 @@ public class CommunityService : ICommunityService
     public async Task<PostCommentDto> AddCommentAsync(Guid userId, Guid postId, CreateCommentDto request)
     {
         var post = await _uow.Repository<CommunityPost>().GetByIdAsync(postId);
-        if (post == null) throw new Exception("Post not found.");
+        if (post == null) throw new KeyNotFoundException("Post not found.");
 
         var comment = new PostComment
         {
@@ -204,8 +230,7 @@ public class CommunityService : ICommunityService
         var repo = _uow.Repository<CommunityPost>();
         var post = await repo.GetByIdAsync(postId);
 
-        if (post == null) throw new Exception("Post not found.");
-
+        if (post == null) throw new KeyNotFoundException("Post not found.");
         if (post.UserId != userId) throw new UnauthorizedAccessException("You can only edit your own posts.");
 
         post.Title = request.Title;
@@ -221,7 +246,7 @@ public class CommunityService : ICommunityService
         var repo = _uow.Repository<CommunityPost>();
         var post = await repo.GetByIdAsync(postId);
 
-        if (post == null) throw new Exception("Post not found.");
+        if (post == null) throw new KeyNotFoundException("Post not found.");
         if (post.UserId != userId) throw new UnauthorizedAccessException("You can only delete your own posts.");
 
         repo.Remove(post);
@@ -233,7 +258,7 @@ public class CommunityService : ICommunityService
         var repo = _uow.Repository<PostComment>();
         var comment = await repo.GetByIdAsync(commentId);
 
-        if (comment == null) throw new Exception("Comment not found.");
+        if (comment == null) throw new KeyNotFoundException("Comment not found.");
         if (comment.UserId != userId) throw new UnauthorizedAccessException("You can only edit your own comments.");
 
         comment.Content = request.Content;
@@ -251,7 +276,7 @@ public class CommunityService : ICommunityService
             .Include(c => c.Replies)
             .FirstOrDefaultAsync(c => c.Id == commentId);
 
-        if (comment == null) throw new Exception("Comment not found.");
+        if (comment == null) throw new KeyNotFoundException("Comment not found.");
         if (comment.UserId != userId) throw new UnauthorizedAccessException("You can only delete your own comments.");
 
         int totalCommentsToRemove = 1 + (comment.Replies?.Count ?? 0);

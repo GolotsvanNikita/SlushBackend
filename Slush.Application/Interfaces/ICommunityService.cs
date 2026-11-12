@@ -14,15 +14,19 @@ public interface ICommunityService
         int pageSize,
         Guid? currentUserId = null);
 
+    Task<CommunityPostDto?> GetPostByIdAsync(Guid postId, Guid? currentUserId = null);
+
     Task<CommunityPostDto> CreatePostAsync(Guid userId, CreateCommunityPostDto request);
-    Task ToggleLikeAsync(Guid userId, Guid postId);
-    Task<PostCommentDto> AddCommentAsync(Guid userId, Guid postId, CreateCommentDto request);
-    Task<PagedResultDto<PostCommentDto>> GetPostCommentsAsync(Guid postId, int page, int pageSize);
     Task UpdatePostAsync(Guid userId, Guid postId, UpdateCommunityPostDto request);
     Task DeletePostAsync(Guid userId, Guid postId);
 
+    Task ToggleLikeAsync(Guid userId, Guid postId);
+
+    Task<PostCommentDto> AddCommentAsync(Guid userId, Guid postId, CreateCommentDto request);
+    Task<PagedResultDto<PostCommentDto>> GetPostCommentsAsync(Guid postId, int page, int pageSize);
     Task UpdateCommentAsync(Guid userId, Guid commentId, UpdateCommentDto request);
     Task DeleteCommentAsync(Guid userId, Guid commentId);
+
     Task<CommunityTabCountsDto> GetGameTabCountsAsync(string gameId, Guid? currentUserId = null);
     Task ToggleSubscribeAsync(Guid userId, string gameId);
 }

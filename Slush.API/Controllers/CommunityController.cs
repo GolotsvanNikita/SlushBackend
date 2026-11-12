@@ -33,14 +33,26 @@ public class CommunityController : ControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
+    [HttpGet("{postId:guid}")]
+    public async Task<IActionResult> GetPostById(Guid postId)
+    {
+        var currentUserId = GetUserId();
+        var userIdOrNull = currentUserId == Guid.Empty ? (Guid?)null : currentUserId;
+
+        var post = await _communityService.GetPostByIdAsync(postId, userIdOrNull);
+        if (post == null)
+            return NotFound(new { message = "Post not found." });
+
+        return Ok(post);
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreatePost([FromBody] CreateCommunityPostDto request)
     {
-        var userIdString = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
-            ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (!Guid.TryParse(userIdString, out Guid userId))
+        var userId = GetUserId();
+        if (userId == Guid.Empty)
             return Unauthorized();
 
         if (string.IsNullOrWhiteSpace(request.GameId))
@@ -58,7 +70,6 @@ public class CommunityController : ControllerBase
         return Guid.TryParse(userIdString, out Guid userId) ? userId : Guid.Empty;
     }
 
-
     [HttpPost("{postId}/like")]
     [Authorize]
     public async Task<IActionResult> ToggleLike(Guid postId)
@@ -66,8 +77,15 @@ public class CommunityController : ControllerBase
         var userId = GetUserId();
         if (userId == Guid.Empty) return Unauthorized();
 
-        await _communityService.ToggleLikeAsync(userId, postId);
-        return Ok(new { message = "Like toggled successfully." });
+        try
+        {
+            await _communityService.ToggleLikeAsync(userId, postId);
+            return Ok(new { message = "Like toggled successfully." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     [HttpPost("{postId}/comment")]
@@ -80,8 +98,15 @@ public class CommunityController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Content))
             return BadRequest(new { message = "Comment content cannot be empty." });
 
-        var comment = await _communityService.AddCommentAsync(userId, postId, request);
-        return Ok(comment);
+        try
+        {
+            var comment = await _communityService.AddCommentAsync(userId, postId, request);
+            return Ok(comment);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     [HttpGet("{postId}/comments")]
@@ -103,6 +128,10 @@ public class CommunityController : ControllerBase
             await _communityService.UpdatePostAsync(userId, postId, request);
             return Ok(new { message = "Post updated successfully." });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
         catch (UnauthorizedAccessException ex)
         {
             return StatusCode(403, new { message = ex.Message });
@@ -121,12 +150,15 @@ public class CommunityController : ControllerBase
             await _communityService.DeletePostAsync(userId, postId);
             return Ok(new { message = "Post deleted successfully." });
         }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
         catch (UnauthorizedAccessException ex)
         {
             return StatusCode(403, new { message = ex.Message });
         }
     }
-
 
     [HttpPut("comment/{commentId}")]
     [Authorize]
@@ -142,6 +174,10 @@ public class CommunityController : ControllerBase
         {
             await _communityService.UpdateCommentAsync(userId, commentId, request);
             return Ok(new { message = "Comment updated successfully." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {
@@ -160,6 +196,10 @@ public class CommunityController : ControllerBase
         {
             await _communityService.DeleteCommentAsync(userId, commentId);
             return Ok(new { message = "Comment deleted successfully." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
         }
         catch (UnauthorizedAccessException ex)
         {
