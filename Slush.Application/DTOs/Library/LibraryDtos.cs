@@ -1,4 +1,5 @@
-﻿using Slush.Application.DTOs.Community;
+﻿using Slush.Application.DTOs.Catalog;
+using Slush.Application.DTOs.Community;
 using Slush.Application.DTOs.Friends;
 
 namespace Slush.Application.DTOs.Library;
@@ -45,7 +46,7 @@ public class LibraryHomeDto
     public List<LibraryGameDto> RecentGames { get; set; } = [];
     public List<LibraryGameDto> FavoriteGames { get; set; } = [];
     public List<LibraryCollectionDto> Collections { get; set; } = [];
-    public List<CommunityPostDto> LatestNews { get; set; } = [];
+    public List<SteamNewsItemDto> LatestNews { get; set; } = [];
     public List<CommunityPostDto> CommunityHighlights { get; set; } = [];
 }
 

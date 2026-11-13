@@ -20,11 +20,16 @@ public class LibraryService : ILibraryService
 
     private readonly IUnitOfWork _uow;
     private readonly IBadgeService _badgeService;
+    private readonly ISteamCatalogService _steamCatalogService;
 
-    public LibraryService(IUnitOfWork uow, IBadgeService badgeService)
+    public LibraryService(
+        IUnitOfWork uow,
+        IBadgeService badgeService,
+        ISteamCatalogService steamCatalogService)
     {
         _uow = uow;
         _badgeService = badgeService;
+        _steamCatalogService = steamCatalogService;
     }
 
     private static CommunityPostType? ParsePostType(string? type)
@@ -385,25 +390,8 @@ public class LibraryService : ILibraryService
         var favorites = await GetFavoritesAsync(userId);
         var collections = await GetCollectionsAsync(userId);
 
-        var userGameIds = await _uow.Repository<UserGame>().AsQueryable()
-            .Where(g => g.UserId == userId)
-            .Select(g => g.GameId)
-            .ToListAsync();
-
-        var newsQuery = _uow.Repository<CommunityPost>().AsQueryable()
-            .Include(p => p.User)
-            .Include(p => p.Likes)
-            .Where(p => p.PostType == CommunityPostType.News);
-
-        if (userGameIds.Any())
-            newsQuery = newsQuery.Where(p => userGameIds.Contains(p.GameId));
-
-        var latestNewsEntities = await newsQuery
-            .OrderByDescending(p => p.CreatedAt)
-            .Take(5)
-            .ToListAsync();
-
-        var latestNews = latestNewsEntities.Select(p => MapToCommunityPostDto(p, userId)).ToList();
+        var aggregatedNews = await _steamCatalogService.GetAggregatedNewsAsync(1, 5);
+        var latestNews = aggregatedNews.Items.ToList();
 
         var weekAgo = DateTime.UtcNow.AddDays(-7);
         var highlightEntities = await _uow.Repository<CommunityPost>().AsQueryable()
