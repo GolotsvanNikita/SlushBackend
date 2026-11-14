@@ -30,6 +30,7 @@ public class GameCatalogController : ControllerBase
             [FromQuery] string? query = null,
             [FromQuery] GameSource? source = null,
             [FromQuery] int? minDiscount = null,
+            [FromQuery] bool? isFree = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 12)
     {
@@ -49,6 +50,66 @@ public class GameCatalogController : ControllerBase
             result = new PagedResultDto<UnifiedGameDto>(
                 combinedItems,
                 Math.Max(result.TotalCount, combinedItems.Count),
+                page,
+                pageSize);
+        }
+        else if (isFree == true || minDiscount == 100 || page == 1)
+        {
+            var freeSteamGames = new List<UnifiedGameDto>
+            {
+                new(
+                    "730",
+                    "Counter-Strike 2",
+                    GameSource.Steam,
+                    0m,
+                    0m,
+                    0,
+                    "https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg",
+                    "https://store.steampowered.com/app/730",
+                    "FPS, Shooter, Multiplayer"
+                ),
+                new(
+                    "570",
+                    "Dota 2",
+                    GameSource.Steam,
+                    0m,
+                    0m,
+                    0,
+                    "https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg",
+                    "https://store.steampowered.com/app/570",
+                    "MOBA, Multiplayer, Strategy"
+                ),
+                new(
+                    "578080",
+                    "PUBG: BATTLEGROUNDS",
+                    GameSource.Steam,
+                    0m,
+                    0m,
+                    0,
+                    "https://cdn.akamai.steamstatic.com/steam/apps/578080/header.jpg",
+                    "https://store.steampowered.com/app/578080",
+                    "Battle Royale, Shooter, Survival"
+                ),
+                new(
+                    "1172470",
+                    "Apex Legends",
+                    GameSource.Steam,
+                    0m,
+                    0m,
+                    0,
+                    "https://cdn.akamai.steamstatic.com/steam/apps/1172470/header.jpg",
+                    "https://store.steampowered.com/app/1172470",
+                    "Battle Royale, FPS, Multiplayer"
+                )
+            };
+
+            var items = isFree == true
+                ? freeSteamGames.Concat(result.Items.Where(g => g.Price == 0)).GroupBy(g => g.Id).Select(g => g.First()).Take(pageSize).ToList()
+                : result.Items.Concat(freeSteamGames).GroupBy(g => g.Id).Select(g => g.First()).Take(pageSize).ToList();
+
+            result = new PagedResultDto<UnifiedGameDto>(
+                items,
+                Math.Max(result.TotalCount, items.Count),
                 page,
                 pageSize);
         }
