@@ -22,7 +22,8 @@ namespace Slush.Infrastructure.Services
             GameSource? source,
             int? minDiscount,
             int page,
-            int pageSize)
+            int pageSize,
+            decimal? maxPrice = null)
         {
             var rawDeals = new List<CheapSharkDeal>();
             var tasks = new List<Task<HttpResponseMessage>>();
@@ -35,6 +36,12 @@ namespace Slush.Infrastructure.Services
                 if (!string.IsNullOrWhiteSpace(query))
                 {
                     url += $"&title={Uri.EscapeDataString(query)}";
+                }
+
+                if (maxPrice.HasValue && maxPrice.Value > 0)
+                {
+                    int upperUsd = (int)Math.Ceiling(maxPrice.Value);
+                    url += $"&upperPrice={upperUsd}";
                 }
 
                 tasks.Add(_httpClient.GetAsync(url));
@@ -94,9 +101,16 @@ namespace Slush.Infrastructure.Services
                 itemsQuery = itemsQuery.Where(g => g.DiscountPercent >= minDiscount.Value);
             }
 
+            if (maxPrice.HasValue)
+            {
+                itemsQuery = itemsQuery.Where(g => g.Price > 0 && g.Price <= maxPrice.Value);
+            }
+
             var finalItems = itemsQuery.Take(pageSize).ToList();
 
-            var totalCount = finalItems.Count == pageSize ? page * pageSize + 10 : (page - 1) * pageSize + finalItems.Count;
+            var totalCount = finalItems.Count == pageSize
+                ? page * pageSize + 10
+                : (page - 1) * pageSize + finalItems.Count;
 
             return new PagedResultDto<UnifiedGameDto>(
                 finalItems,

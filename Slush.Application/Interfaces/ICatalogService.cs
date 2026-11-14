@@ -2,10 +2,15 @@
 using Slush.Application.DTOs.Common;
 using Slush.Domain.Enums;
 
-namespace Slush.Application.Interfaces
+namespace Slush.Application.Interfaces;
+
+public interface ICatalogService
 {
-    public interface ICatalogService
-    {
-        Task<PagedResultDto<UnifiedGameDto>> SearchAsync(string query, GameSource? source, int? minDiscount, int page, int pageSize);
-    }
+    Task<PagedResultDto<UnifiedGameDto>> SearchAsync(
+        string query,
+        GameSource? source,
+        int? minDiscount,
+        int page,
+        int pageSize,
+        decimal? maxPrice = null);
 }

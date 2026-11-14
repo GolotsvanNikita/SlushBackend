@@ -23,10 +23,21 @@ namespace Slush.API.Controllers
             [FromQuery] string query = "",
             [FromQuery] GameSource? source = null,
             [FromQuery] int? minDiscount = null,
+            [FromQuery] decimal? maxPrice = null,
             [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 10)
+            [FromQuery] int pageSize = 12)
         {
-            var result = await _catalogService.SearchAsync(query, source, minDiscount, page, pageSize);
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            var result = await _catalogService.SearchAsync(
+                query,
+                source,
+                minDiscount,
+                page,
+                pageSize,
+                maxPrice);
+
             return Ok(result);
         }
     }
