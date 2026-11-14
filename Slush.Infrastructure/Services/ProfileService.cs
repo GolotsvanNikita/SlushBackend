@@ -285,6 +285,7 @@ public class ProfileService : IProfileService
             return new ProfilePostDto
             {
                 Id = p.Id.ToString(),
+                GameId = p.GameId,
                 AuthorUsername = p.User.Username,
                 AuthorAvatarUrl = p.User.AvatarUrl,
                 PostType = p.PostType.ToString(),
@@ -378,6 +379,7 @@ public class ProfileService : IProfileService
                 TextSnippet = !string.IsNullOrEmpty(p.ShortDescription)
                     ? p.ShortDescription
                     : (p.Content != null && p.Content.Length > 150 ? p.Content.Substring(0, 150) + "..." : p.Content ?? string.Empty),
+                MediaUrl = p.MediaUrl,
                 LikesCount = p.LikesCount,
                 CommentsCount = p.CommentsCount,
                 CreatedAt = p.CreatedAt.ToString("dd.MM.yyyy")

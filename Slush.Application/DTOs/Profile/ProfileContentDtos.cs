@@ -22,6 +22,7 @@ public class ProfileGuideDto
     public string GameTitle { get; set; } = string.Empty;
     public string GuideTitle { get; set; } = string.Empty;
     public string TextSnippet { get; set; } = string.Empty;
+    public string? MediaUrl { get; set; }
     public int LikesCount { get; set; }
     public int CommentsCount { get; set; }
     public string CreatedAt { get; set; } = string.Empty;
@@ -53,6 +54,7 @@ public class ProfileGameDto
 public class ProfilePostDto
 {
     public string Id { get; set; } = string.Empty;
+    public string GameId { get; set; } = string.Empty;
     public string AuthorUsername { get; set; } = string.Empty;
     public string AuthorAvatarUrl { get; set; } = string.Empty;
 
