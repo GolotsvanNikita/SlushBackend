@@ -10,6 +10,7 @@ namespace Slush.Infrastructure.Services
 {
     public class CheapSharkCatalogService : ICatalogService
     {
+        private const decimal UsdToUahRate = 41.5m;
         private readonly HttpClient _httpClient;
 
         public CheapSharkCatalogService(HttpClient httpClient)
@@ -23,8 +24,13 @@ namespace Slush.Infrastructure.Services
             int? minDiscount,
             int page,
             int pageSize,
-            decimal? maxPrice = null)
+            decimal? maxPrice = null,
+            bool? isFree = null)
         {
+            decimal? maxPriceUsd = (maxPrice.HasValue && maxPrice.Value > 0)
+                ? maxPrice.Value / UsdToUahRate
+                : null;
+
             var rawDeals = new List<CheapSharkDeal>();
             var tasks = new List<Task<HttpResponseMessage>>();
 
@@ -38,9 +44,13 @@ namespace Slush.Infrastructure.Services
                     url += $"&title={Uri.EscapeDataString(query)}";
                 }
 
-                if (maxPrice.HasValue && maxPrice.Value > 0)
+                if (isFree == true)
                 {
-                    int upperUsd = (int)Math.Ceiling(maxPrice.Value);
+                    url += "&upperPrice=0";
+                }
+                else if (maxPriceUsd.HasValue)
+                {
+                    int upperUsd = (int)Math.Ceiling(maxPriceUsd.Value);
                     url += $"&upperPrice={upperUsd}";
                 }
 
@@ -101,9 +111,13 @@ namespace Slush.Infrastructure.Services
                 itemsQuery = itemsQuery.Where(g => g.DiscountPercent >= minDiscount.Value);
             }
 
-            if (maxPrice.HasValue)
+            if (isFree == true)
             {
-                itemsQuery = itemsQuery.Where(g => g.Price > 0 && g.Price <= maxPrice.Value);
+                itemsQuery = itemsQuery.Where(g => g.Price == 0m);
+            }
+            else if (maxPriceUsd.HasValue)
+            {
+                itemsQuery = itemsQuery.Where(g => g.Price > 0m && g.Price <= maxPriceUsd.Value);
             }
 
             var finalItems = itemsQuery.Take(pageSize).ToList();

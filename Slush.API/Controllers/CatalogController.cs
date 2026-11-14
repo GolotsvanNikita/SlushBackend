@@ -24,6 +24,7 @@ namespace Slush.API.Controllers
             [FromQuery] GameSource? source = null,
             [FromQuery] int? minDiscount = null,
             [FromQuery] decimal? maxPrice = null,
+            [FromQuery] bool? isFree = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 12)
         {
@@ -36,7 +37,8 @@ namespace Slush.API.Controllers
                 minDiscount,
                 page,
                 pageSize,
-                maxPrice);
+                maxPrice,
+                isFree);
 
             return Ok(result);
         }

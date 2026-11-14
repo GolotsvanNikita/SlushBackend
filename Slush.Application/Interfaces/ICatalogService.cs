@@ -12,5 +12,6 @@ public interface ICatalogService
         int? minDiscount,
         int page,
         int pageSize,
-        decimal? maxPrice = null);
+        decimal? maxPrice = null,
+        bool? isFree = null);
 }
