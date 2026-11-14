@@ -31,10 +31,13 @@ public class GameCatalogController : ControllerBase
             [FromQuery] GameSource? source = null,
             [FromQuery] int? minDiscount = null,
             [FromQuery] bool? isFree = null,
+            [FromQuery] decimal? maxPrice = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 12)
     {
-        var result = await _cheapSharkService.SearchAsync(query ?? string.Empty, source, minDiscount, page, pageSize);
+        int fetchSize = maxPrice.HasValue ? Math.Max(pageSize * 3, 40) : pageSize;
+
+        var result = await _cheapSharkService.SearchAsync(query ?? string.Empty, source, minDiscount, page, fetchSize);
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -44,12 +47,20 @@ public class GameCatalogController : ControllerBase
                 .Concat(steamResult.Items)
                 .GroupBy(g => g.Id)
                 .Select(g => g.First())
-                .Take(pageSize)
                 .ToList();
 
+            if (maxPrice.HasValue)
+            {
+                combinedItems = combinedItems
+                    .Where(g => g.Price > 0 && g.Price <= maxPrice.Value)
+                    .ToList();
+            }
+
+            var paged = combinedItems.Take(pageSize).ToList();
+
             result = new PagedResultDto<UnifiedGameDto>(
-                combinedItems,
-                Math.Max(result.TotalCount, combinedItems.Count),
+                paged,
+                Math.Max(result.TotalCount, paged.Count),
                 page,
                 pageSize);
         }
@@ -57,50 +68,18 @@ public class GameCatalogController : ControllerBase
         {
             var freeSteamGames = new List<UnifiedGameDto>
         {
-            new(
-                "730",
-                "Counter-Strike 2",
-                GameSource.Steam,
-                0m,
-                0m,
-                0,
+            new("730", "Counter-Strike 2", GameSource.Steam, 0m, 0m, 0,
                 "https://cdn.akamai.steamstatic.com/steam/apps/730/header.jpg",
-                "https://store.steampowered.com/app/730",
-                "FPS, Shooter, Multiplayer"
-            ),
-            new(
-                "570",
-                "Dota 2",
-                GameSource.Steam,
-                0m,
-                0m,
-                0,
+                "https://store.steampowered.com/app/730", "FPS, Shooter, Multiplayer"),
+            new("570", "Dota 2", GameSource.Steam, 0m, 0m, 0,
                 "https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg",
-                "https://store.steampowered.com/app/570",
-                "MOBA, Multiplayer, Strategy"
-            ),
-            new(
-                "578080",
-                "PUBG: BATTLEGROUNDS",
-                GameSource.Steam,
-                0m,
-                0m,
-                0,
+                "https://store.steampowered.com/app/570", "MOBA, Multiplayer, Strategy"),
+            new("578080", "PUBG: BATTLEGROUNDS", GameSource.Steam, 0m, 0m, 0,
                 "https://cdn.akamai.steamstatic.com/steam/apps/578080/header.jpg",
-                "https://store.steampowered.com/app/578080",
-                "Battle Royale, Shooter, Survival"
-            ),
-            new(
-                "1172470",
-                "Apex Legends",
-                GameSource.Steam,
-                0m,
-                0m,
-                0,
+                "https://store.steampowered.com/app/578080", "Battle Royale, Shooter, Survival"),
+            new("1172470", "Apex Legends", GameSource.Steam, 0m, 0m, 0,
                 "https://cdn.akamai.steamstatic.com/steam/apps/1172470/header.jpg",
-                "https://store.steampowered.com/app/1172470",
-                "Battle Royale, FPS, Multiplayer"
-            )
+                "https://store.steampowered.com/app/1172470", "Battle Royale, FPS, Multiplayer")
         };
 
             var items = freeSteamGames
@@ -110,9 +89,18 @@ public class GameCatalogController : ControllerBase
                 .Take(pageSize)
                 .ToList();
 
+            result = new PagedResultDto<UnifiedGameDto>(items, items.Count, page, pageSize);
+        }
+        else if (maxPrice.HasValue)
+        {
+            var filteredItems = result.Items
+                .Where(g => g.Price > 0 && g.Price <= maxPrice.Value)
+                .Take(pageSize)
+                .ToList();
+
             result = new PagedResultDto<UnifiedGameDto>(
-                items,
-                items.Count,
+                filteredItems,
+                filteredItems.Count,
                 page,
                 pageSize);
         }
